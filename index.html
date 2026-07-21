@@ -1020,6 +1020,7 @@
   }
   .add-btn:hover { background: var(--polish-accent); }
   .add-btn:active { transform: scale(0.98); }
+  .add-btn:disabled { opacity: 0.6; cursor: default; }
 
   .ai-btn {
     width: 100%;
@@ -1197,36 +1198,21 @@
     flex-wrap: wrap;
   }
 
-  /* Export reminder banner */
-  .export-reminder {
+  /* Firebase status banner */
+  .fb-status {
     display: none;
     background: var(--amber-light);
     border: 1.5px solid #F0C040;
     border-radius: var(--radius);
-    padding: 14px 16px;
+    padding: 12px 16px;
     margin-bottom: 20px;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-  }
-  .export-reminder.show { display: flex; }
-  .export-reminder .er-icon { font-size: 22px; flex-shrink: 0; }
-  .export-reminder .er-text { flex: 1; font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
-  .export-reminder .er-text strong { color: var(--ink); }
-  .export-reminder .er-actions { display: flex; gap: 8px; flex-shrink: 0; }
-  .export-reminder .er-btn {
-    padding: 7px 14px;
-    border-radius: var(--radius-sm);
-    font-family: 'Inter', sans-serif;
     font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s;
+    color: var(--ink-soft);
   }
-  .export-reminder .er-btn.primary { background: var(--amber); color: white; }
-  .export-reminder .er-btn.primary:hover { background: #A06800; }
-  .export-reminder .er-btn.dismiss { background: transparent; color: var(--muted); border: 1px solid var(--divider); }
-  .export-reminder .er-btn.dismiss:hover { color: var(--ink); }
+  .fb-status.show { display: flex; }
+  .fb-status strong { color: var(--ink); }
 </style>
 </head>
 <body>
@@ -1246,6 +1232,11 @@
 </header>
 
 <div class="app">
+  <!-- Firebase connection status banner (shown if loading vocab/sentences fails) -->
+  <div class="fb-status" id="fbStatus">
+    ⚠️ <span><strong>Not connected to Firebase.</strong> Fill in the <code>firebaseConfig</code> object near the top of the script, make sure the <code>vocabulary</code> / <code>sentences</code> collections exist (use the seed page to upload them), and reload.</span>
+  </div>
+
   <!-- CATEGORY BAR -->
   <div class="category-bar" id="categoryBar"></div>
 
@@ -1418,18 +1409,6 @@
       <div class="progress-pill" id="mwTotalPill">0 saved</div>
     </div>
 
-    <!-- Export reminder banner -->
-    <div class="export-reminder" id="exportReminder">
-      <div class="er-icon">💾</div>
-      <div class="er-text">
-        <strong>Don't lose your words!</strong> You've added a few words — export a backup file so you never lose them if Chrome clears its data.
-      </div>
-      <div class="er-actions">
-        <button class="er-btn primary" onclick="mwExport(); dismissReminder()">⬇ Export now</button>
-        <button class="er-btn dismiss" onclick="dismissReminder()">Later</button>
-      </div>
-    </div>
-
     <div class="mw-layout">
       <!-- Left: Add word form -->
       <div class="add-word-panel">
@@ -1460,7 +1439,7 @@
         <button class="ai-btn" id="mwAiBtn" onclick="mwAIFill()">✨ Auto-fill with AI</button>
         <div class="ai-result-box" id="mwAiBox"></div>
 
-        <button class="add-btn" onclick="mwAddWord()">+ Add to My Words</button>
+        <button class="add-btn" id="mwAddBtn" onclick="mwAddWord()">+ Add to My Words</button>
       </div>
 
       <!-- Right: Saved words list -->
@@ -1469,8 +1448,8 @@
           <h3>📚 Saved Words</h3>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             <span class="mw-count-pill" id="mwListCount">0 words</span>
-            <button class="topbar-btn" onclick="mwExport()" title="Save your words to a file">⬇ Export</button>
-            <label class="topbar-btn" title="Load words from a file" style="cursor:pointer;margin:0;">
+            <button class="topbar-btn" onclick="mwExport()" title="Save your words to a backup file">⬇ Export</button>
+            <label class="topbar-btn" title="Load words from a backup file" style="cursor:pointer;margin:0;">
               ⬆ Import<input type="file" accept=".json" onchange="mwImport(event)" style="display:none;">
             </label>
             <button class="topbar-btn" onclick="mwClearAll()" style="font-size:11px;color:var(--muted);">Clear all</button>
@@ -1547,8 +1526,34 @@
   </div>
 </div>
 
-<script>
-// ─── DATA ────────────────────────────────────────────────────────────────────
+<script type="module">
+// ─── FIREBASE ─────────────────────────────────────────────────────────────
+// Data source: Firestore. Vocabulary and sentences live in the "vocabulary"
+// and "sentences" collections (fill them using seed-words.html). Words the
+// learner saves via "My Words" are written to the "myWords" collection.
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getFirestore, collection, getDocs, addDoc, deleteDoc, doc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// TODO: paste your Firebase project config here (Project settings → General → Your apps)
+const firebaseConfig = {
+  apiKey: "AIzaSyBioizHOgcW7W0vqqKzB9qIArWmzBH12ZQ",
+  authDomain: "gpolish.firebaseapp.com",
+  projectId: "gpolish",
+  storageBucket: "gpolish.firebasestorage.app",
+  messagingSenderId: "96534832794",
+  appId: "1:96534832794:web:413f4ee974eb84691f6123"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+const VOCAB_COLLECTION = 'vocabulary';
+const SENTENCES_COLLECTION = 'sentences';
+const MYWORDS_COLLECTION = 'myWords';
+
+// ─── STATIC UI CONFIG (categories are just filter labels, not learning data) ──
 const CATEGORIES = [
   { id: 'all',        label: 'All',         emoji: '🌟' },
   { id: 'greetings',  label: 'Greetings',   emoji: '👋' },
@@ -1563,208 +1568,24 @@ const CATEGORIES = [
   { id: 'adjectives', label: 'Adjectives',  emoji: '✨' },
 ];
 
-// gender: m=masculine, f=feminine, n=neuter, —=no gender
-const VOCAB = [
-  // GREETINGS
-  { pl:'Cześć',         pron:'cheshch',           en:'Hi / Hello',        cat:'greetings', g:'—' },
-  { pl:'Dzień dobry',   pron:'djen DOH-brih',      en:'Good morning/day',  cat:'greetings', g:'—' },
-  { pl:'Dobry wieczór', pron:'DOH-brih VYEH-choor', en:'Good evening',     cat:'greetings', g:'—' },
-  { pl:'Dobranoc',      pron:'doh-BRAH-nots',      en:'Good night',        cat:'greetings', g:'—' },
-  { pl:'Do widzenia',   pron:'doh vee-DZEH-nyah',  en:'Goodbye',           cat:'greetings', g:'—' },
-  { pl:'Pa pa',         pron:'pah pah',             en:'Bye bye',           cat:'greetings', g:'—' },
-  { pl:'Proszę',        pron:'PROH-sheh',           en:'Please / Here you go', cat:'greetings', g:'—' },
-  { pl:'Dziękuję',      pron:'djen-KOO-yeh',        en:'Thank you',         cat:'greetings', g:'—' },
-  { pl:'Przepraszam',   pron:'pshe-PRAH-shahm',     en:'Excuse me / Sorry', cat:'greetings', g:'—' },
-  { pl:'Tak',           pron:'tahk',                en:'Yes',               cat:'greetings', g:'—' },
-  { pl:'Nie',           pron:'nyeh',                en:'No',                cat:'greetings', g:'—' },
-  { pl:'Jak się masz?', pron:'yahk sheh mahsh',     en:'How are you?',      cat:'greetings', g:'—' },
-  { pl:'Dobrze',        pron:'DOH-bzheh',           en:'Fine / Good',       cat:'greetings', g:'—' },
-  { pl:'Jak masz na imię?', pron:'yahk mahsh nah EE-myeh', en:'What is your name?', cat:'greetings', g:'—' },
-  { pl:'Mam na imię…',  pron:'mahm nah EE-myeh',   en:'My name is…',       cat:'greetings', g:'—' },
+// ─── DATA (now loaded from Firestore instead of hardcoded) ──────────────────
+let VOCAB = [];
+let SENTENCES = [];
 
-  // NUMBERS
-  { pl:'zero',    pron:'ZEH-ro',     en:'zero',    cat:'numbers', g:'n' },
-  { pl:'jeden',   pron:'YEH-den',    en:'one',     cat:'numbers', g:'m' },
-  { pl:'dwa',     pron:'dvah',       en:'two',     cat:'numbers', g:'n' },
-  { pl:'trzy',    pron:'tshih',      en:'three',   cat:'numbers', g:'—' },
-  { pl:'cztery',  pron:'CHTEH-rih',  en:'four',    cat:'numbers', g:'—' },
-  { pl:'pięć',    pron:'pyench',     en:'five',    cat:'numbers', g:'—' },
-  { pl:'sześć',   pron:'sheshch',    en:'six',     cat:'numbers', g:'—' },
-  { pl:'siedem',  pron:'SHYEH-dem',  en:'seven',   cat:'numbers', g:'—' },
-  { pl:'osiem',   pron:'OH-shyem',   en:'eight',   cat:'numbers', g:'—' },
-  { pl:'dziewięć',pron:'djeh-VYENCH',en:'nine',    cat:'numbers', g:'—' },
-  { pl:'dziesięć',pron:'djeh-SHENCH',en:'ten',     cat:'numbers', g:'—' },
-  { pl:'dwadzieścia', pron:'dvah-DJESH-chah', en:'twenty', cat:'numbers', g:'—' },
-  { pl:'sto',     pron:'stoh',       en:'hundred', cat:'numbers', g:'n' },
-  { pl:'tysiąc',  pron:'TIH-shonts', en:'thousand',cat:'numbers', g:'m' },
-
-  // COLORS
-  { pl:'czerwony',  pron:'chehr-VOH-nih', en:'red',    cat:'colors', g:'m' },
-  { pl:'niebieski', pron:'nyeh-BYEH-skee', en:'blue',  cat:'colors', g:'m' },
-  { pl:'zielony',   pron:'zheh-LOH-nih',  en:'green',  cat:'colors', g:'m' },
-  { pl:'żółty',     pron:'ZHOOL-tih',     en:'yellow', cat:'colors', g:'m' },
-  { pl:'czarny',    pron:'CHAHR-nih',     en:'black',  cat:'colors', g:'m' },
-  { pl:'biały',     pron:'BYAH-wih',      en:'white',  cat:'colors', g:'m' },
-  { pl:'szary',     pron:'SHAH-rih',      en:'grey',   cat:'colors', g:'m' },
-  { pl:'brązowy',   pron:'bron-ZOH-vih',  en:'brown',  cat:'colors', g:'m' },
-  { pl:'różowy',    pron:'roo-ZHO-vih',   en:'pink',   cat:'colors', g:'m' },
-  { pl:'pomarańczowy', pron:'po-mah-RAN-choh-vih', en:'orange', cat:'colors', g:'m' },
-  { pl:'fioletowy', pron:'fyo-leh-TOH-vih', en:'purple', cat:'colors', g:'m' },
-
-  // FAMILY
-  { pl:'mama',     pron:'MAH-mah',   en:'mum',          cat:'family', g:'f' },
-  { pl:'tata',     pron:'TAH-tah',   en:'dad',           cat:'family', g:'m' },
-  { pl:'brat',     pron:'braht',     en:'brother',       cat:'family', g:'m' },
-  { pl:'siostra',  pron:'SHYO-strah',en:'sister',        cat:'family', g:'f' },
-  { pl:'dziadek',  pron:'DJAH-dek',  en:'grandfather',   cat:'family', g:'m' },
-  { pl:'babcia',   pron:'BAH-bchah', en:'grandmother',   cat:'family', g:'f' },
-  { pl:'syn',      pron:'sin',       en:'son',           cat:'family', g:'m' },
-  { pl:'córka',    pron:'TSOOR-kah', en:'daughter',      cat:'family', g:'f' },
-  { pl:'wujek',    pron:'VOO-yek',   en:'uncle',         cat:'family', g:'m' },
-  { pl:'ciotka',   pron:'CHYOT-kah', en:'aunt',          cat:'family', g:'f' },
-  { pl:'mąż',      pron:'monzh',     en:'husband',       cat:'family', g:'m' },
-  { pl:'żona',     pron:'ZHOH-nah',  en:'wife',          cat:'family', g:'f' },
-  { pl:'dziecko',  pron:'DJETS-ko',  en:'child',         cat:'family', g:'n' },
-
-  // FOOD
-  { pl:'chleb',    pron:'khlep',     en:'bread',     cat:'food', g:'m' },
-  { pl:'woda',     pron:'VOH-dah',   en:'water',     cat:'food', g:'f' },
-  { pl:'herbata',  pron:'hehr-BAH-tah', en:'tea',    cat:'food', g:'f' },
-  { pl:'kawa',     pron:'KAH-vah',   en:'coffee',    cat:'food', g:'f' },
-  { pl:'mleko',    pron:'MLEH-ko',   en:'milk',      cat:'food', g:'n' },
-  { pl:'jabłko',   pron:'YAHB-wko',  en:'apple',     cat:'food', g:'n' },
-  { pl:'zupa',     pron:'ZOO-pah',   en:'soup',      cat:'food', g:'f' },
-  { pl:'mięso',    pron:'MYEN-soh',  en:'meat',      cat:'food', g:'n' },
-  { pl:'ryba',     pron:'RIH-bah',   en:'fish',      cat:'food', g:'f' },
-  { pl:'ser',      pron:'sehr',      en:'cheese',    cat:'food', g:'m' },
-  { pl:'jajko',    pron:'YAHY-ko',   en:'egg',       cat:'food', g:'n' },
-  { pl:'cukier',   pron:'TSOO-kyer', en:'sugar',     cat:'food', g:'m' },
-  { pl:'sól',      pron:'sool',      en:'salt',      cat:'food', g:'f' },
-  { pl:'masło',    pron:'MAH-swoh',  en:'butter',    cat:'food', g:'n' },
-  { pl:'ziemniaki',pron:'zhyem-NYAH-kee', en:'potatoes', cat:'food', g:'m' },
-  { pl:'pomidor',  pron:'po-MEE-dor',en:'tomato',    cat:'food', g:'m' },
-
-  // BODY
-  { pl:'głowa',    pron:'GWOH-vah',  en:'head',      cat:'body', g:'f' },
-  { pl:'oko',      pron:'OH-ko',     en:'eye',       cat:'body', g:'n' },
-  { pl:'nos',      pron:'nohs',      en:'nose',      cat:'body', g:'m' },
-  { pl:'usta',     pron:'OO-stah',   en:'mouth',     cat:'body', g:'n' },
-  { pl:'ucho',     pron:'OO-kho',    en:'ear',       cat:'body', g:'n' },
-  { pl:'ręka',     pron:'REN-kah',   en:'hand/arm',  cat:'body', g:'f' },
-  { pl:'noga',     pron:'NOH-gah',   en:'leg/foot',  cat:'body', g:'f' },
-  { pl:'plecy',    pron:'PLEH-tsih', en:'back',      cat:'body', g:'m' },
-  { pl:'brzuch',   pron:'bzhookh',   en:'belly/stomach', cat:'body', g:'m' },
-  { pl:'serce',    pron:'SEHR-tseh', en:'heart',     cat:'body', g:'n' },
-  { pl:'włosy',    pron:'VWOH-sih',  en:'hair',      cat:'body', g:'m' },
-  { pl:'zęby',     pron:'ZEN-bih',   en:'teeth',     cat:'body', g:'m' },
-
-  // TIME
-  { pl:'dzisiaj',    pron:'DJEE-shyay',   en:'today',       cat:'time', g:'—' },
-  { pl:'jutro',      pron:'YOO-tro',      en:'tomorrow',    cat:'time', g:'—' },
-  { pl:'wczoraj',    pron:'VCHO-ray',     en:'yesterday',   cat:'time', g:'—' },
-  { pl:'teraz',      pron:'TEH-rahs',     en:'now',         cat:'time', g:'—' },
-  { pl:'rano',       pron:'RAH-no',       en:'morning',     cat:'time', g:'n' },
-  { pl:'wieczór',    pron:'VYEH-choor',   en:'evening',     cat:'time', g:'m' },
-  { pl:'noc',        pron:'nots',         en:'night',       cat:'time', g:'f' },
-  { pl:'tydzień',    pron:'TIH-djen',     en:'week',        cat:'time', g:'m' },
-  { pl:'miesiąc',    pron:'MYEH-shonts',  en:'month',       cat:'time', g:'m' },
-  { pl:'rok',        pron:'rok',          en:'year',        cat:'time', g:'m' },
-  { pl:'godzina',    pron:'go-DJEE-nah',  en:'hour/o\'clock', cat:'time', g:'f' },
-  { pl:'minuta',     pron:'mee-NOO-tah',  en:'minute',      cat:'time', g:'f' },
-  { pl:'poniedziałek', pron:'po-nyeh-DJAH-wek', en:'Monday', cat:'time', g:'m' },
-  { pl:'wtorek',     pron:'VTOH-rek',     en:'Tuesday',     cat:'time', g:'m' },
-  { pl:'środa',      pron:'SHROH-dah',    en:'Wednesday',   cat:'time', g:'f' },
-  { pl:'czwartek',   pron:'CHVAR-tek',    en:'Thursday',    cat:'time', g:'m' },
-  { pl:'piątek',     pron:'PYON-tek',     en:'Friday',      cat:'time', g:'m' },
-  { pl:'sobota',     pron:'so-BOH-tah',   en:'Saturday',    cat:'time', g:'f' },
-  { pl:'niedziela',  pron:'nyeh-DJEH-lah',en:'Sunday',      cat:'time', g:'f' },
-
-  // PLACES
-  { pl:'dom',        pron:'dom',          en:'house/home',  cat:'places', g:'m' },
-  { pl:'szkoła',     pron:'SHKOH-wah',    en:'school',      cat:'places', g:'f' },
-  { pl:'sklep',      pron:'sklep',        en:'shop/store',  cat:'places', g:'m' },
-  { pl:'ulica',      pron:'oo-LEE-tsah',  en:'street',      cat:'places', g:'f' },
-  { pl:'miasto',     pron:'MYAH-stoh',    en:'city/town',   cat:'places', g:'n' },
-  { pl:'kraj',       pron:'kray',         en:'country',     cat:'places', g:'m' },
-  { pl:'park',       pron:'pahk',         en:'park',        cat:'places', g:'m' },
-  { pl:'restauracja',pron:'res-taw-RAHT-syah', en:'restaurant', cat:'places', g:'f' },
-  { pl:'szpital',    pron:'SHPEE-tahl',   en:'hospital',    cat:'places', g:'m' },
-  { pl:'dworzec',    pron:'DVOH-zhets',   en:'station',     cat:'places', g:'m' },
-  { pl:'lotnisko',   pron:'lot-NEE-sko',  en:'airport',     cat:'places', g:'n' },
-  { pl:'biblioteka', pron:'bee-blyoh-TEH-kah', en:'library', cat:'places', g:'f' },
-  { pl:'kościół',    pron:'KOSH-chyoow',  en:'church',      cat:'places', g:'m' },
-
-  // VERBS
-  { pl:'być',        pron:'bich',         en:'to be',       cat:'verbs', g:'—' },
-  { pl:'mieć',       pron:'myech',        en:'to have',     cat:'verbs', g:'—' },
-  { pl:'chcieć',     pron:'khchech',      en:'to want',     cat:'verbs', g:'—' },
-  { pl:'iść',        pron:'eeshch',       en:'to go (on foot)', cat:'verbs', g:'—' },
-  { pl:'jechać',     pron:'YEH-khach',    en:'to go (by vehicle)', cat:'verbs', g:'—' },
-  { pl:'mówić',      pron:'MOO-veech',    en:'to speak/say',cat:'verbs', g:'—' },
-  { pl:'jeść',       pron:'yeshch',       en:'to eat',      cat:'verbs', g:'—' },
-  { pl:'pić',        pron:'peech',        en:'to drink',    cat:'verbs', g:'—' },
-  { pl:'rozumieć',   pron:'ro-ZOO-myech', en:'to understand', cat:'verbs', g:'—' },
-  { pl:'wiedzieć',   pron:'VYEH-djech',   en:'to know (a fact)', cat:'verbs', g:'—' },
-  { pl:'znać',       pron:'znach',        en:'to know (a person)', cat:'verbs', g:'—' },
-  { pl:'lubić',      pron:'LOO-beech',    en:'to like',     cat:'verbs', g:'—' },
-  { pl:'pracować',   pron:'prah-TSOH-vach', en:'to work',   cat:'verbs', g:'—' },
-  { pl:'kupować',    pron:'koo-POH-vach', en:'to buy',      cat:'verbs', g:'—' },
-  { pl:'czytać',     pron:'CHIH-tach',    en:'to read',     cat:'verbs', g:'—' },
-  { pl:'pisać',      pron:'PEE-sach',     en:'to write',    cat:'verbs', g:'—' },
-  { pl:'słuchać',    pron:'SWOO-khach',   en:'to listen',   cat:'verbs', g:'—' },
-  { pl:'widzieć',    pron:'VEE-djech',    en:'to see',      cat:'verbs', g:'—' },
-  { pl:'spać',       pron:'spach',        en:'to sleep',    cat:'verbs', g:'—' },
-  { pl:'mieszkać',   pron:'MYESH-kach',   en:'to live/reside', cat:'verbs', g:'—' },
-
-  // ADJECTIVES
-  { pl:'duży',       pron:'DOO-zhih',     en:'big',         cat:'adjectives', g:'m' },
-  { pl:'mały',       pron:'MAH-wih',      en:'small',       cat:'adjectives', g:'m' },
-  { pl:'dobry',      pron:'DOH-brih',     en:'good',        cat:'adjectives', g:'m' },
-  { pl:'zły',        pron:'zwih',         en:'bad/angry',   cat:'adjectives', g:'m' },
-  { pl:'nowy',       pron:'NOH-vih',      en:'new',         cat:'adjectives', g:'m' },
-  { pl:'stary',      pron:'STAH-rih',     en:'old',         cat:'adjectives', g:'m' },
-  { pl:'piękny',     pron:'PYEN-kih',     en:'beautiful',   cat:'adjectives', g:'m' },
-  { pl:'drogi',      pron:'DROH-gee',     en:'expensive',   cat:'adjectives', g:'m' },
-  { pl:'tani',       pron:'TAH-nyee',     en:'cheap',       cat:'adjectives', g:'m' },
-  { pl:'szybki',     pron:'SHIB-kee',     en:'fast',        cat:'adjectives', g:'m' },
-  { pl:'wolny',      pron:'VOL-nih',      en:'slow/free',   cat:'adjectives', g:'m' },
-  { pl:'ciepły',     pron:'CHYEP-wih',    en:'warm',        cat:'adjectives', g:'m' },
-  { pl:'zimny',      pron:'ZEEM-nih',     en:'cold',        cat:'adjectives', g:'m' },
-  { pl:'ciężki',     pron:'CHYENSH-kee',  en:'heavy',       cat:'adjectives', g:'m' },
-  { pl:'lekki',      pron:'LEK-kee',      en:'light/easy',  cat:'adjectives', g:'m' },
-];
-
-const SENTENCES = [
-  { pl:'Jak się nazywasz?',       pron:'yahk sheh nah-ZIH-vahsh', en:'What is your name?',         cat:'greetings' },
-  { pl:'Nazywam się Anna.',       pron:'nah-ZIH-vahm sheh AH-nah', en:'My name is Anna.',           cat:'greetings' },
-  { pl:'Skąd jesteś?',           pron:'skond YEH-stesh',          en:'Where are you from?',         cat:'greetings' },
-  { pl:'Jestem z Polski.',        pron:'YEH-stem s POL-skee',      en:'I am from Poland.',           cat:'greetings' },
-  { pl:'Mówię trochę po polsku.', pron:'MOO-vyeh TRO-kheh po POL-skoo', en:'I speak a little Polish.', cat:'greetings' },
-  { pl:'Nie rozumiem.',           pron:'nyeh ro-ZOO-myem',         en:'I do not understand.',        cat:'greetings' },
-  { pl:'Proszę mówić wolniej.',   pron:'PROH-sheh MOO-veech VOL-nyey', en:'Please speak slower.',   cat:'greetings' },
-  { pl:'Ile to kosztuje?',        pron:'EE-leh to kosh-TOO-yeh',   en:'How much does it cost?',      cat:'food' },
-  { pl:'Poproszę kawę.',          pron:'po-PROH-sheh KAH-veh',     en:'A coffee please.',            cat:'food' },
-  { pl:'Jestem głodny.',          pron:'YEH-stem GWOOD-nih',       en:'I am hungry.',                cat:'food' },
-  { pl:'To jest pyszne!',         pron:'to yest PISH-neh',         en:'This is delicious!',          cat:'food' },
-  { pl:'Rachunek, proszę.',       pron:'rah-KHOO-nek PROH-sheh',   en:'The bill, please.',           cat:'food' },
-  { pl:'Gdzie jest toaleta?',     pron:'GDJEH yest to-ah-LEH-tah', en:'Where is the toilet?',        cat:'places' },
-  { pl:'Mieszkam w Warszawie.',   pron:'MYESH-kahm v var-SHAH-vyeh', en:'I live in Warsaw.',         cat:'places' },
-  { pl:'To jest daleko.',         pron:'to yest dah-LEH-ko',       en:'It is far.',                  cat:'places' },
-  { pl:'Skręć w lewo.',           pron:'skrehnch v LEH-vo',        en:'Turn left.',                  cat:'places' },
-  { pl:'Skręć w prawo.',          pron:'skrehnch v PRAH-vo',       en:'Turn right.',                 cat:'places' },
-  { pl:'Ile masz lat?',           pron:'EE-leh mahsh laht',        en:'How old are you?',            cat:'numbers' },
-  { pl:'Mam trzydzieści lat.',    pron:'mahm tshih-DJESH-chee laht', en:'I am 30 years old.',       cat:'numbers' },
-  { pl:'Która godzina?',          pron:'KTOO-rah go-DJEE-nah',     en:'What time is it?',            cat:'time' },
-  { pl:'Jest pierwsza.',          pron:'yest PYERV-shah',           en:'It is one o\'clock.',        cat:'time' },
-  { pl:'Do jutra!',               pron:'do YOO-trah',              en:'Until tomorrow! / See you!',  cat:'time' },
-  { pl:'Mam brata i siostrę.',    pron:'mahm BRAH-tah ee SHYO-streh', en:'I have a brother and a sister.', cat:'family' },
-  { pl:'Moja mama jest miła.',    pron:'MOH-yah MAH-mah yest MEE-wah', en:'My mum is nice.',        cat:'family' },
-  { pl:'Lubię czytać książki.',   pron:'LOO-byeh CHIH-tach KSYON-shkee', en:'I like reading books.', cat:'verbs' },
-  { pl:'Chcę się nauczyć polskiego.', pron:'khcheh sheh nah-OO-chich pol-SKIE-go', en:'I want to learn Polish.', cat:'verbs' },
-  { pl:'Pracuję w biurze.',       pron:'prah-TSOO-yeh v BYOO-zheh', en:'I work in an office.',      cat:'verbs' },
-  { pl:'To jest ładne.',          pron:'to yest WAHD-neh',          en:'It is pretty.',              cat:'adjectives' },
-  { pl:'Pogoda jest dziś piękna.',pron:'po-GOH-dah yest djish PYEN-knah', en:'The weather is beautiful today.', cat:'adjectives' },
-];
+async function loadVocabAndSentences() {
+  try {
+    const [vocabSnap, sentSnap] = await Promise.all([
+      getDocs(collection(db, VOCAB_COLLECTION)),
+      getDocs(collection(db, SENTENCES_COLLECTION))
+    ]);
+    VOCAB = vocabSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    SENTENCES = sentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.getElementById('fbStatus').classList.remove('show');
+  } catch (err) {
+    console.error('Failed to load vocabulary/sentences from Firebase:', err);
+    document.getElementById('fbStatus').classList.add('show');
+  }
+}
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let currentMode = 'flashcards';
@@ -1776,9 +1597,11 @@ let isFlipped = false;
 let score = { correct: 0, wrong: 0, total: 0 };
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-function init() {
+async function init() {
   renderCategories();
+  await loadVocabAndSentences();
   selectCategory('all');
+  await mwRenderList();
 }
 
 function renderCategories() {
@@ -1830,12 +1653,10 @@ function renderCard() {
   if (!cards.length) return;
   const card = cards[cardIndex];
 
-  // Unflip
   document.getElementById('cardInner').classList.remove('flipped');
   isFlipped = false;
 
   if (!isReverse) {
-    // Polish on front
     document.getElementById('frontLabel').textContent = 'Polish';
     document.getElementById('backLabel').textContent  = 'English';
     document.getElementById('frontWord').textContent  = card.pl;
@@ -1845,7 +1666,6 @@ function renderCard() {
     document.getElementById('frontSpeak').onclick = (e) => { e.stopPropagation(); speak(card.pl, 'pl-PL'); };
     document.getElementById('backSpeak').onclick  = (e) => { e.stopPropagation(); speak(card.en, 'en-GB'); };
   } else {
-    // English on front
     document.getElementById('frontLabel').textContent = 'English';
     document.getElementById('backLabel').textContent  = 'Polish';
     document.getElementById('frontWord').textContent  = card.en;
@@ -1856,7 +1676,6 @@ function renderCard() {
     document.getElementById('backSpeak').onclick  = (e) => { e.stopPropagation(); speak(card.pl, 'pl-PL'); };
   }
 
-  // Gender badge
   const gBadge = document.getElementById('frontGender');
   if (!isReverse && card.g && card.g !== '—') {
     const labels = { m:'masculine', f:'feminine', n:'neuter' };
@@ -1876,11 +1695,13 @@ function flipCard() {
 }
 
 function nextCard() {
+  if (!cards.length) return;
   cardIndex = (cardIndex + 1) % cards.length;
   renderCard();
 }
 
 function prevCard() {
+  if (!cards.length) return;
   cardIndex = (cardIndex - 1 + cards.length) % cards.length;
   renderCard();
 }
@@ -1940,18 +1761,18 @@ function renderVocab() {
   const gLabels = { m:'masc.', f:'fem.', n:'neut.', '—':'—' };
   const gCls    = { m:'gender-m', f:'gender-f', n:'gender-n', '—':'' };
 
-  document.getElementById('vocabBody').innerHTML = data.map((v,i) =>
+  document.getElementById('vocabBody').innerHTML = data.length ? data.map((v) =>
     `<tr>
       <td><div class="word-pl">${v.pl}</div></td>
       <td><div class="word-pron">[${v.pron}]</div></td>
       <td><div class="word-en">${v.en}</div></td>
-      <td>${v.g !== '—' ? `<span class="card-gender ${gCls[v.g]}" style="font-size:11px;">${gLabels[v.g]}</span>` : '—'}</td>
+      <td>${v.g && v.g !== '—' ? `<span class="card-gender ${gCls[v.g]}" style="font-size:11px;">${gLabels[v.g]}</span>` : '—'}</td>
       <td>
-        <button class="tts-mini" onclick="speak('${v.pl.replace(/'/g,"\\'")}','pl-PL')" title="Hear Polish">🔊 PL</button>
-        <button class="tts-mini" onclick="speak('${v.en.replace(/'/g,"\\'")}','en-GB')" title="Hear English" style="margin-left:4px;">🔊 EN</button>
+        <button class="tts-mini" onclick="speak('${(v.pl||'').replace(/'/g,"\\'")}','pl-PL')" title="Hear Polish">🔊 PL</button>
+        <button class="tts-mini" onclick="speak('${(v.en||'').replace(/'/g,"\\'")}','en-GB')" title="Hear English" style="margin-left:4px;">🔊 EN</button>
       </td>
     </tr>`
-  ).join('');
+  ).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">No vocabulary loaded from Firebase yet.</td></tr>`;
 }
 
 // ─── SENTENCES ───────────────────────────────────────────────────────────────
@@ -1971,8 +1792,8 @@ function renderSentences() {
           <div class="sentence-en">${s.en}</div>
         </div>
         <div class="sentence-actions">
-          <button class="tts-mini" onclick="speak('${s.pl.replace(/'/g,"\\'")}','pl-PL')" title="Hear Polish">🔊 PL</button>
-          <button class="tts-mini" onclick="speak('${s.en.replace(/'/g,"\\'")}','en-GB')" title="Hear English">🔊 EN</button>
+          <button class="tts-mini" onclick="speak('${(s.pl||'').replace(/'/g,"\\'")}','pl-PL')" title="Hear Polish">🔊 PL</button>
+          <button class="tts-mini" onclick="speak('${(s.en||'').replace(/'/g,"\\'")}','en-GB')" title="Hear English">🔊 EN</button>
         </div>
       </div>`).join('')
     : `<div class="empty-state"><div class="emoji">💬</div><p>No sentences in this category yet.</p></div>`;
@@ -1987,7 +1808,6 @@ function speak(text, lang) {
   utter.rate = 0.85;
   utter.pitch = 1;
 
-  // Try to get a native voice for the language
   const voices = window.speechSynthesis.getVoices();
   const match = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
   if (match) utter.voice = match;
@@ -2005,7 +1825,6 @@ function speakBack() {
   speak(isReverse ? card.pl : card.en, isReverse ? 'pl-PL' : 'en-GB');
 }
 
-// Load voices async (some browsers need this)
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 }
@@ -2148,23 +1967,19 @@ function startScenario(id) {
   currentScenario = id;
   convStarted = true;
 
-  // Update sidebar buttons
   document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById(`sc-btn-${id}`);
   if (btn) btn.classList.add('active');
 
-  // Show intro card
   const sc = SCENARIOS[id];
   document.getElementById('scenarioIntro').style.display = '';
   document.getElementById('introName').textContent = `${sc.emoji} ${sc.name}`;
   document.getElementById('introGoal').textContent = `🎯 Goal: ${sc.goal}`;
 
-  // Reset chat
   convHistory = [];
   document.getElementById('chatMessages').innerHTML = '';
   document.getElementById('chatInput').value = '';
 
-  // Kick off first bot message
   getBotReply('START_CONVERSATION');
 }
 
@@ -2245,7 +2060,6 @@ function appendMessage(role, plText, enText, correction, hints) {
 
   body.appendChild(bubble);
 
-  // TTS button for bot
   if (role === 'bot' && plText) {
     const actions = document.createElement('div');
     actions.className = 'msg-actions';
@@ -2261,7 +2075,6 @@ function appendMessage(role, plText, enText, correction, hints) {
     }
   }
 
-  // Correction bubble
   if (correction && correction !== 'NONE') {
     const corrDiv = document.createElement('div');
     corrDiv.className = 'correction-bubble';
@@ -2277,7 +2090,6 @@ function appendMessage(role, plText, enText, correction, hints) {
     body.appendChild(corrDiv);
   }
 
-  // Hint chips
   if (hints && hints.length) {
     const chipWrap = document.createElement('div');
     chipWrap.className = 'hint-chips';
@@ -2327,7 +2139,6 @@ function removeTyping() {
 }
 
 function parseAndDisplay(raw, userInput) {
-  // Extract Polish text (lines before EN:)
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
 
   let plLines = [], enText = '', correction = '', hints = [];
@@ -2348,7 +2159,6 @@ function parseAndDisplay(raw, userInput) {
 
   const plText = plLines.join(' ');
 
-  // Only show correction if user actually said something
   const showCorrection = userInput && userInput !== 'START_CONVERSATION' ? correction : null;
 
   appendMessage('bot', plText || raw, enText || null, showCorrection, hints);
@@ -2362,7 +2172,7 @@ async function getBotReply(userInput) {
   const sc = SCENARIOS[currentScenario];
 
   const messages = [
-    ...convHistory.slice(-12) // Keep last 12 turns for context
+    ...convHistory.slice(-12)
   ];
 
   if (userInput === 'START_CONVERSATION') {
@@ -2387,7 +2197,6 @@ async function getBotReply(userInput) {
     removeTyping();
     parseAndDisplay(raw, userInput);
 
-    // Store the bot reply in history (just the Polish part for context)
     convHistory.push({ role: 'assistant', content: raw });
 
   } catch (err) {
@@ -2399,9 +2208,7 @@ async function getBotReply(userInput) {
   document.getElementById('sendBtn').disabled = false;
 }
 
-// ─── MY WORDS ─────────────────────────────────────────────────────────────────
-const MW_KEY = 'polishA1_mywords';
-
+// ─── MY WORDS (now backed by Firestore instead of localStorage) ─────────────
 let myWords = [];
 let mwCards  = [];
 let mwIndex  = 0;
@@ -2409,12 +2216,16 @@ let mwFlipped = false;
 let mwReverse = false;
 let mwScore  = { correct:0, wrong:0, total:0 };
 
-function mwLoad() {
-  try { myWords = JSON.parse(localStorage.getItem(MW_KEY) || '[]'); } catch(e) { myWords = []; }
-}
-
-function mwSave() {
-  try { localStorage.setItem(MW_KEY, JSON.stringify(myWords)); } catch(e) {}
+async function mwLoad() {
+  try {
+    const snap = await getDocs(collection(db, MYWORDS_COLLECTION));
+    myWords = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  } catch (err) {
+    console.error('Failed to load My Words from Firebase:', err);
+    myWords = [];
+  }
 }
 
 function mwClearAI() {
@@ -2460,19 +2271,16 @@ async function mwAIFill() {
     const clean = raw.replace(/```json|```/g,'').trim();
     const obj = JSON.parse(clean);
 
-    // Store forms on a hidden data attribute so mwAddWord can pick them up
     document.getElementById('mwAiBtn').dataset.forms     = JSON.stringify(obj.forms || []);
     document.getElementById('mwAiBtn').dataset.formsNote = obj.formsNote || '';
     document.getElementById('mwAiBtn').dataset.wordType  = obj.wordType || '';
     document.getElementById('mwAiBtn').dataset.gender    = obj.gender || 'none';
 
-    // Auto-fill the form fields
     if (obj.en)     document.getElementById('mwInputEn').value     = obj.en;
     if (obj.pron)   document.getElementById('mwInputPron').value   = obj.pron;
     if (obj.sentPl) document.getElementById('mwInputSentPl').value = obj.sentPl;
     if (obj.sentEn) document.getElementById('mwInputSentEn').value = obj.sentEn;
 
-    // Show preview box
     const highlight = obj.sentHighlight || pl;
     const highlightedSent = obj.sentPl
       ? obj.sentPl.replace(new RegExp(`(${highlight})`, 'i'), '<strong>$1</strong>')
@@ -2506,14 +2314,13 @@ async function mwAIFill() {
   btn.textContent = '✨ Auto-fill with AI';
 }
 
-function mwAddWord() {
+async function mwAddWord() {
   const pl     = document.getElementById('mwInputPl').value.trim();
   const en     = document.getElementById('mwInputEn').value.trim();
   const pron   = document.getElementById('mwInputPron').value.trim();
   const sentPl = document.getElementById('mwInputSentPl').value.trim();
   const sentEn = document.getElementById('mwInputSentEn').value.trim();
 
-  // Pick up AI-generated forms if available
   const aiBtn = document.getElementById('mwAiBtn');
   let forms = [], formsNote = '', wordType = '';
   try { forms = JSON.parse(aiBtn.dataset.forms || '[]'); } catch(e) {}
@@ -2526,10 +2333,23 @@ function mwAddWord() {
     showToast(`"${pl}" is already in My Words`, 'wrong'); return;
   }
 
-  myWords.unshift({ id: Date.now(), pl, en, pron, sentPl, sentEn, forms, formsNote, wordType });
-  mwSave();
+  const addBtn = document.getElementById('mwAddBtn');
+  addBtn.disabled = true;
+  addBtn.textContent = 'Saving…';
 
-  // Clear form + stash
+  try {
+    await addDoc(collection(db, MYWORDS_COLLECTION), {
+      pl, en, pron, sentPl, sentEn, forms, formsNote, wordType,
+      createdAt: serverTimestamp()
+    });
+  } catch (err) {
+    console.error('Failed to save word to Firebase:', err);
+    showToast('⚠️ Could not save to Firebase — check your config', 'wrong');
+    addBtn.disabled = false;
+    addBtn.textContent = '+ Add to My Words';
+    return;
+  }
+
   ['mwInputPl','mwInputEn','mwInputPron','mwInputSentPl','mwInputSentEn'].forEach(id => {
     document.getElementById(id).value = '';
   });
@@ -2538,35 +2358,29 @@ function mwAddWord() {
   aiBtn.dataset.wordType  = '';
   document.getElementById('mwAiBox').classList.remove('visible');
 
-  mwRenderList();
+  addBtn.disabled = false;
+  addBtn.textContent = '+ Add to My Words';
+
+  await mwRenderList();
   showToast(`✓ "${pl}" added to My Words!`, 'correct');
+}
 
-  // Show export reminder every 3 words added, until dismissed this session
-  const REMIND_EVERY = 3;
-  const sessionKey = 'mwReminderDismissed';
-  if (!sessionStorage.getItem(sessionKey)) {
-    if (myWords.length > 0 && myWords.length % REMIND_EVERY === 0) {
-      document.getElementById('exportReminder').classList.add('show');
-    }
+async function mwDeleteWord(id) {
+  try {
+    await deleteDoc(doc(db, MYWORDS_COLLECTION, id));
+  } catch (err) {
+    console.error('Failed to delete word from Firebase:', err);
+    showToast('⚠️ Could not delete from Firebase', 'wrong');
+    return;
   }
-}
-
-function dismissReminder() {
-  document.getElementById('exportReminder').classList.remove('show');
-  sessionStorage.setItem('mwReminderDismissed', '1');
-}
-
-function mwDeleteWord(id) {
-  myWords = myWords.filter(w => w.id !== id);
-  mwSave();
-  mwRenderList();
+  await mwRenderList();
   showToast('Word removed', 'wrong');
 }
 
 function mwSpeakWord(text, lang) { speak(text, lang); }
 
-function mwRenderList() {
-  mwLoad();
+async function mwRenderList() {
+  await mwLoad();
   const listEl = document.getElementById('mwWordList');
   const totalPill = document.getElementById('mwTotalPill');
   const listCount = document.getElementById('mwListCount');
@@ -2606,8 +2420,8 @@ function mwRenderList() {
           ${w.pron ? `<div class="mw-pron">[${w.pron}]</div>` : ''}
         </div>
         <div style="display:flex;gap:5px;flex-shrink:0;">
-          <button class="mw-action-btn" onclick="mwSpeakWord('${w.pl.replace(/'/g,"\\'")}','pl-PL')">🔊 PL</button>
-          <button class="mw-action-btn" onclick="mwSpeakWord('${w.en.replace(/'/g,"\\'")}','en-GB')">🔊 EN</button>
+          <button class="mw-action-btn" onclick="mwSpeakWord('${(w.pl||'').replace(/'/g,"\\'")}','pl-PL')">🔊 PL</button>
+          <button class="mw-action-btn" onclick="mwSpeakWord('${(w.en||'').replace(/'/g,"\\'")}','en-GB')">🔊 EN</button>
         </div>
       </div>
       ${formsHTML}
@@ -2617,12 +2431,11 @@ function mwRenderList() {
         ${w.sentEn ? `<span class="mw-sent-en">${w.sentEn}</span>` : ''}
       </div>` : ''}
       <div class="mw-card-actions">
-        <button class="mw-action-btn del" onclick="mwDeleteWord(${w.id})">✕ Remove</button>
+        <button class="mw-action-btn del" onclick="mwDeleteWord('${w.id}')">✕ Remove</button>
       </div>
     </div>`;
   }).join('');
 
-  // Show / refresh flashcard section
   document.getElementById('mwFcSection').style.display = '';
   mwCards = [...myWords];
   mwIndex = 0;
@@ -2631,7 +2444,6 @@ function mwRenderList() {
 }
 
 function highlightWord(sentence, word) {
-  // Try to highlight the root of the word in the sentence (simple match)
   const root = word.slice(0, Math.max(3, word.length - 2));
   return sentence.replace(new RegExp(`(${root}\\S*)`, 'gi'),
     '<span style="color:var(--polish-red);font-weight:600;">$1</span>');
@@ -2662,7 +2474,6 @@ function mwRenderCard() {
     document.getElementById('mwBackPron').textContent   = w.pron ? `[${w.pron}]` : '';
   }
 
-  // Example sentence on back
   const sentEl = document.getElementById('mwBackSentence');
   if (w.sentPl) {
     sentEl.innerHTML = `"${w.sentPl}"${w.sentEn ? `<br><span style="font-size:11px;opacity:0.75;">${w.sentEn}</span>` : ''}`;
@@ -2670,7 +2481,6 @@ function mwRenderCard() {
     sentEl.innerHTML = '';
   }
 
-  // Forms on back
   const formsEl = document.getElementById('mwBackForms');
   if (w.forms && w.forms.length) {
     formsEl.innerHTML = `
@@ -2696,8 +2506,8 @@ function mwFlipCard() {
   document.getElementById('mwCardInner').classList.toggle('flipped', mwFlipped);
 }
 
-function mwNextCard() { mwIndex = (mwIndex+1) % mwCards.length; mwRenderCard(); }
-function mwPrevCard() { mwIndex = (mwIndex-1+mwCards.length) % mwCards.length; mwRenderCard(); }
+function mwNextCard() { if (!mwCards.length) return; mwIndex = (mwIndex+1) % mwCards.length; mwRenderCard(); }
+function mwPrevCard() { if (!mwCards.length) return; mwIndex = (mwIndex-1+mwCards.length) % mwCards.length; mwRenderCard(); }
 
 function mwMarkCard(correct) {
   if (!mwFlipped) { mwFlipCard(); return; }
@@ -2757,51 +2567,70 @@ function mwExport() {
   showToast(`✓ ${myWords.length} word${myWords.length!==1?'s':''} exported!`, 'correct');
 }
 
-function mwImport(event) {
+async function mwImport(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result);
       const incoming = data.words || (Array.isArray(data) ? data : null);
       if (!incoming) { showToast('Invalid file format', 'wrong'); return; }
 
       let added = 0, skipped = 0;
-      incoming.forEach(w => {
-        if (!w.pl || !w.en) { skipped++; return; }
-        if (myWords.find(x => x.pl.toLowerCase() === w.pl.toLowerCase())) { skipped++; return; }
-        // Ensure id is unique
-        myWords.push({ ...w, id: Date.now() + Math.random() });
-        added++;
-      });
+      for (const w of incoming) {
+        if (!w.pl || !w.en) { skipped++; continue; }
+        if (myWords.find(x => x.pl.toLowerCase() === w.pl.toLowerCase())) { skipped++; continue; }
+        const { id, createdAt, ...rest } = w;
+        try {
+          await addDoc(collection(db, MYWORDS_COLLECTION), { ...rest, createdAt: serverTimestamp() });
+          added++;
+        } catch (err) {
+          console.error('Failed to import word:', w.pl, err);
+          skipped++;
+        }
+      }
 
-      mwSave();
-      mwRenderList();
+      await mwRenderList();
       const msg = skipped > 0
-        ? `✓ Imported ${added} word${added!==1?'s':''} (${skipped} skipped — duplicates)`
+        ? `✓ Imported ${added} word${added!==1?'s':''} (${skipped} skipped)`
         : `✓ Imported ${added} word${added!==1?'s':''}!`;
       showToast(msg, 'correct');
     } catch(err) {
       showToast('Could not read file', 'wrong');
     }
-    // Reset the file input so the same file can be re-imported if needed
     event.target.value = '';
   };
   reader.readAsText(file);
 }
 
-function mwClearAll() {
+async function mwClearAll() {
   if (!myWords.length) return;
-  if (!confirm(`Remove all ${myWords.length} saved word(s)?`)) return;
-  myWords = [];
-  mwSave();
-  mwRenderList();
+  if (!confirm(`Remove all ${myWords.length} saved word(s)? This deletes them from Firebase.`)) return;
+  try {
+    await Promise.all(myWords.map(w => deleteDoc(doc(db, MYWORDS_COLLECTION, w.id))));
+  } catch (err) {
+    console.error('Failed to clear My Words:', err);
+    showToast('⚠️ Could not clear all words', 'wrong');
+  }
+  await mwRenderList();
   showToast('All words cleared', 'wrong');
 }
 
+// ─── Expose functions used by inline HTML onclick/onchange handlers ─────────
+// (required because this script runs as an ES module, whose top-level
+// declarations are NOT automatically visible to inline event attributes)
+Object.assign(window, {
+  selectCategory, setMode, flipCard, nextCard, prevCard, shuffleCards, markCard,
+  resetScore, toggleReverse, speak, speakFront, speakBack,
+  startScenario, restartConversation, toggleAutoTTS, handleChatKey, autoResize,
+  sendUserMessage, useHint,
+  mwClearAI, mwAIFill, mwAddWord, mwDeleteWord, mwSpeakWord, mwExport, mwImport,
+  mwClearAll, mwFlipCard, mwNextCard, mwPrevCard, mwMarkCard, mwShuffle,
+  mwToggleReverse, mwSpeakFront, mwSpeakBack
+});
+
 // ─── START ────────────────────────────────────────────────────────────────────
-mwLoad();
 init();
 </script>
 </body>
