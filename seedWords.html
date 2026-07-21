@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polski A1 — Firebase Word Seeder</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --cream: #FAFAF7;
+    --white: #FFFFFF;
+    --ink: #1A1A2E;
+    --ink-soft: #3D3D5C;
+    --muted: #8585A4;
+    --divider: #E4E4EF;
+    --polish-red: #DC143C;
+    --polish-accent: #B01030;
+    --polish-light: #FFF0F3;
+    --green: #1A7A4A;
+    --green-light: #EBF7F1;
+    --amber: #C07A00;
+    --amber-light: #FFF8E6;
+    --blue: #1A4A8A;
+    --blue-light: #EFF4FF;
+    --shadow-sm: 0 1px 3px rgba(26,26,46,0.08);
+    --shadow-md: 0 4px 16px rgba(26,26,46,0.10);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+  header {
+    background: var(--white);
+    border-bottom: 1px solid var(--divider);
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo .flag {
+    width: 26px; height: 18px; border-radius: 3px; overflow: hidden;
+    display: flex; flex-direction: column; box-shadow: var(--shadow-sm);
+  }
+  .flag-top { background: var(--white); flex: 1; }
+  .flag-bottom { background: var(--polish-red); flex: 1; }
+
+  .wrap { max-width: 760px; margin: 0 auto; padding: 36px 24px 80px; }
+
+  h1 { font-family: 'DM Serif Display', serif; font-size: 28px; margin-bottom: 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  .panel {
+    background: var(--white);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  .panel p { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 6px; }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--cream);
+    border: 1px solid var(--divider);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 12.5px;
+  }
+
+  .counts { display: flex; gap: 14px; margin: 16px 0; flex-wrap: wrap; }
+  .count-card {
+    flex: 1; min-width: 140px;
+    background: var(--cream);
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .count-num {
+    font-family: 'DM Serif Display', serif;
+    font-size: 26px;
+    color: var(--ink);
+  }
+  .count-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); margin-top: 2px;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 13px;
+    background: var(--polish-red);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:hover { background: var(--polish-accent); }
+  .btn:active { transform: scale(0.99); }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  .btn.secondary {
+    background: var(--white);
+    color: var(--ink-soft);
+    border: 1.5px solid var(--divider);
+  }
+  .btn.secondary:hover { border-color: var(--ink-soft); color: var(--ink); background: var(--cream); }
+
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row .btn { flex: 1; }
+
+  .log {
+    margin-top: 16px;
+    background: var(--ink);
+    color: #D8F5E0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    max-height: 260px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    display: none;
+  }
+  .log.show { display: block; }
+  .log .err { color: #FFB3B3; }
+  .log .ok  { color: #A6F0BE; }
+
+  .status-banner {
+    display: none;
+    background: var(--amber-light);
+    border: 1.5px solid #F0C040;
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+  }
+  .status-banner.show { display: block; }
+  .status-banner strong { color: var(--ink); }
+
+  .preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  .preview-table th {
+    text-align: left;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .preview-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .preview-wrap { max-height: 220px; overflow-y: auto; border: 1px solid var(--divider); border-radius: var(--radius-sm); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="flag"><div class="flag-top"></div><div class="flag-bottom"></div></div>
+    Polski A1 — Firebase Word Seeder
+  </div>
+</header>
+
+<div class="wrap">
+  <h1>📤 Upload words to Firestore</h1>
+  <p class="sub">This page holds the original A1 vocabulary and sentence lists and uploads them once into your Firestore database, so the main app can load them from there instead of a hardcoded list.</p>
+
+  <div class="status-banner" id="statusBanner">
+    ⚠️ <strong>Not connected to Firebase.</strong> Fill in the <code>firebaseConfig</code> object near the top of the script in this file, then reload the page.
+  </div>
+
+  <div class="panel">
+    <h2>1. Set up your Firebase config</h2>
+    <p>Open this file and fill in the <code>firebaseConfig</code> object with your project's values (from Firebase Console → Project settings → General → Your apps). This is the same config you'll paste into <code>index.html</code>.</p>
+    <p>Make sure Firestore is enabled for the project, and that its security rules allow writes (at least temporarily) for this one-time upload.</p>
+  </div>
+
+  <div class="panel">
+    <h2>2. What will be uploaded</h2>
+    <div class="counts">
+      <div class="count-card">
+        <div class="count-num" id="vocabCount">0</div>
+        <div class="count-label">vocabulary words</div>
+      </div>
+      <div class="count-card">
+        <div class="count-num" id="sentCount">0</div>
+        <div class="count-label">sentences</div>
+      </div>
+      <div class="count-card">
+        <div class="count-num" id="existingVocabCount">–</div>
+        <div class="count-label">already in Firestore (vocabulary)</div>
+      </div>
+      <div class="count-card">
+        <div class="count-num" id="existingSentCount">–</div>
+        <div class="count-label">already in Firestore (sentences)</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn secondary" id="checkBtn" onclick="checkExisting()">🔍 Check what's already in Firestore</button>
+      <button class="btn secondary" id="previewBtn" onclick="togglePreview()">👁 Preview word list</button>
+    </div>
+    <div id="previewArea" style="display:none;margin-top:14px;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>3. Upload</h2>
+    <p>Each word/sentence is written as one document, into the <code>vocabulary</code> and <code>sentences</code> collections. Running this more than once will create duplicates — use the check button above first.</p>
+    <div class="btn-row">
+      <button class="btn" id="uploadBtn" onclick="uploadAll()">⬆ Upload vocabulary + sentences to Firebase</button>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getFirestore, collection, getDocs, writeBatch, doc
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// TODO: paste your Firebase project config here — same one used in index.html
+const firebaseConfig = {
+  apiKey: "AIzaSyBioizHOgcW7W0vqqKzB9qIArWmzBH12ZQ",
+  authDomain: "gpolish.firebaseapp.com",
+  projectId: "gpolish",
+  storageBucket: "gpolish.firebasestorage.app",
+  messagingSenderId: "96534832794",
+  appId: "1:96534832794:web:413f4ee974eb84691f6123"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+const VOCAB_COLLECTION = 'vocabulary';
+const SENTENCES_COLLECTION = 'sentences';
+
+// ─── The original word data, moved out of index.html ────────────────────────
+// gender: m=masculine, f=feminine, n=neuter, —=no gender
+const VOCAB = [
+  // GREETINGS
+  { pl:'Cześć',         pron:'cheshch',           en:'Hi / Hello',        cat:'greetings', g:'—' },
+  { pl:'Dzień dobry',   pron:'djen DOH-brih',      en:'Good morning/day',  cat:'greetings', g:'—' },
+  { pl:'Dobry wieczór', pron:'DOH-brih VYEH-choor', en:'Good evening',     cat:'greetings', g:'—' },
+  { pl:'Dobranoc',      pron:'doh-BRAH-nots',      en:'Good night',        cat:'greetings', g:'—' },
+  { pl:'Do widzenia',   pron:'doh vee-DZEH-nyah',  en:'Goodbye',           cat:'greetings', g:'—' },
+  { pl:'Pa pa',         pron:'pah pah',             en:'Bye bye',           cat:'greetings', g:'—' },
+  { pl:'Proszę',        pron:'PROH-sheh',           en:'Please / Here you go', cat:'greetings', g:'—' },
+  { pl:'Dziękuję',      pron:'djen-KOO-yeh',        en:'Thank you',         cat:'greetings', g:'—' },
+  { pl:'Przepraszam',   pron:'pshe-PRAH-shahm',     en:'Excuse me / Sorry', cat:'greetings', g:'—' },
+  { pl:'Tak',           pron:'tahk',                en:'Yes',               cat:'greetings', g:'—' },
+  { pl:'Nie',           pron:'nyeh',                en:'No',                cat:'greetings', g:'—' },
+  { pl:'Jak się masz?', pron:'yahk sheh mahsh',     en:'How are you?',      cat:'greetings', g:'—' },
+  { pl:'Dobrze',        pron:'DOH-bzheh',           en:'Fine / Good',       cat:'greetings', g:'—' },
+  { pl:'Jak masz na imię?', pron:'yahk mahsh nah EE-myeh', en:'What is your name?', cat:'greetings', g:'—' },
+  { pl:'Mam na imię…',  pron:'mahm nah EE-myeh',   en:'My name is…',       cat:'greetings', g:'—' },
+
+  // NUMBERS
+  { pl:'zero',    pron:'ZEH-ro',     en:'zero',    cat:'numbers', g:'n' },
+  { pl:'jeden',   pron:'YEH-den',    en:'one',     cat:'numbers', g:'m' },
+  { pl:'dwa',     pron:'dvah',       en:'two',     cat:'numbers', g:'n' },
+  { pl:'trzy',    pron:'tshih',      en:'three',   cat:'numbers', g:'—' },
+  { pl:'cztery',  pron:'CHTEH-rih',  en:'four',    cat:'numbers', g:'—' },
+  { pl:'pięć',    pron:'pyench',     en:'five',    cat:'numbers', g:'—' },
+  { pl:'sześć',   pron:'sheshch',    en:'six',     cat:'numbers', g:'—' },
+  { pl:'siedem',  pron:'SHYEH-dem',  en:'seven',   cat:'numbers', g:'—' },
+  { pl:'osiem',   pron:'OH-shyem',   en:'eight',   cat:'numbers', g:'—' },
+  { pl:'dziewięć',pron:'djeh-VYENCH',en:'nine',    cat:'numbers', g:'—' },
+  { pl:'dziesięć',pron:'djeh-SHENCH',en:'ten',     cat:'numbers', g:'—' },
+  { pl:'dwadzieścia', pron:'dvah-DJESH-chah', en:'twenty', cat:'numbers', g:'—' },
+  { pl:'sto',     pron:'stoh',       en:'hundred', cat:'numbers', g:'n' },
+  { pl:'tysiąc',  pron:'TIH-shonts', en:'thousand',cat:'numbers', g:'m' },
+
+  // COLORS
+  { pl:'czerwony',  pron:'chehr-VOH-nih', en:'red',    cat:'colors', g:'m' },
+  { pl:'niebieski', pron:'nyeh-BYEH-skee', en:'blue',  cat:'colors', g:'m' },
+  { pl:'zielony',   pron:'zheh-LOH-nih',  en:'green',  cat:'colors', g:'m' },
+  { pl:'żółty',     pron:'ZHOOL-tih',     en:'yellow', cat:'colors', g:'m' },
+  { pl:'czarny',    pron:'CHAHR-nih',     en:'black',  cat:'colors', g:'m' },
+  { pl:'biały',     pron:'BYAH-wih',      en:'white',  cat:'colors', g:'m' },
+  { pl:'szary',     pron:'SHAH-rih',      en:'grey',   cat:'colors', g:'m' },
+  { pl:'brązowy',   pron:'bron-ZOH-vih',  en:'brown',  cat:'colors', g:'m' },
+  { pl:'różowy',    pron:'roo-ZHO-vih',   en:'pink',   cat:'colors', g:'m' },
+  { pl:'pomarańczowy', pron:'po-mah-RAN-choh-vih', en:'orange', cat:'colors', g:'m' },
+  { pl:'fioletowy', pron:'fyo-leh-TOH-vih', en:'purple', cat:'colors', g:'m' },
+
+  // FAMILY
+  { pl:'mama',     pron:'MAH-mah',   en:'mum',          cat:'family', g:'f' },
+  { pl:'tata',     pron:'TAH-tah',   en:'dad',           cat:'family', g:'m' },
+  { pl:'brat',     pron:'braht',     en:'brother',       cat:'family', g:'m' },
+  { pl:'siostra',  pron:'SHYO-strah',en:'sister',        cat:'family', g:'f' },
+  { pl:'dziadek',  pron:'DJAH-dek',  en:'grandfather',   cat:'family', g:'m' },
+  { pl:'babcia',   pron:'BAH-bchah', en:'grandmother',   cat:'family', g:'f' },
+  { pl:'syn',      pron:'sin',       en:'son',           cat:'family', g:'m' },
+  { pl:'córka',    pron:'TSOOR-kah', en:'daughter',      cat:'family', g:'f' },
+  { pl:'wujek',    pron:'VOO-yek',   en:'uncle',         cat:'family', g:'m' },
+  { pl:'ciotka',   pron:'CHYOT-kah', en:'aunt',          cat:'family', g:'f' },
+  { pl:'mąż',      pron:'monzh',     en:'husband',       cat:'family', g:'m' },
+  { pl:'żona',     pron:'ZHOH-nah',  en:'wife',          cat:'family', g:'f' },
+  { pl:'dziecko',  pron:'DJETS-ko',  en:'child',         cat:'family', g:'n' },
+
+  // FOOD
+  { pl:'chleb',    pron:'khlep',     en:'bread',     cat:'food', g:'m' },
+  { pl:'woda',     pron:'VOH-dah',   en:'water',     cat:'food', g:'f' },
+  { pl:'herbata',  pron:'hehr-BAH-tah', en:'tea',    cat:'food', g:'f' },
+  { pl:'kawa',     pron:'KAH-vah',   en:'coffee',    cat:'food', g:'f' },
+  { pl:'mleko',    pron:'MLEH-ko',   en:'milk',      cat:'food', g:'n' },
+  { pl:'jabłko',   pron:'YAHB-wko',  en:'apple',     cat:'food', g:'n' },
+  { pl:'zupa',     pron:'ZOO-pah',   en:'soup',      cat:'food', g:'f' },
+  { pl:'mięso',    pron:'MYEN-soh',  en:'meat',      cat:'food', g:'n' },
+  { pl:'ryba',     pron:'RIH-bah',   en:'fish',      cat:'food', g:'f' },
+  { pl:'ser',      pron:'sehr',      en:'cheese',    cat:'food', g:'m' },
+  { pl:'jajko',    pron:'YAHY-ko',   en:'egg',       cat:'food', g:'n' },
+  { pl:'cukier',   pron:'TSOO-kyer', en:'sugar',     cat:'food', g:'m' },
+  { pl:'sól',      pron:'sool',      en:'salt',      cat:'food', g:'f' },
+  { pl:'masło',    pron:'MAH-swoh',  en:'butter',    cat:'food', g:'n' },
+  { pl:'ziemniaki',pron:'zhyem-NYAH-kee', en:'potatoes', cat:'food', g:'m' },
+  { pl:'pomidor',  pron:'po-MEE-dor',en:'tomato',    cat:'food', g:'m' },
+
+  // BODY
+  { pl:'głowa',    pron:'GWOH-vah',  en:'head',      cat:'body', g:'f' },
+  { pl:'oko',      pron:'OH-ko',     en:'eye',       cat:'body', g:'n' },
+  { pl:'nos',      pron:'nohs',      en:'nose',      cat:'body', g:'m' },
+  { pl:'usta',     pron:'OO-stah',   en:'mouth',     cat:'body', g:'n' },
+  { pl:'ucho',     pron:'OO-kho',    en:'ear',       cat:'body', g:'n' },
+  { pl:'ręka',     pron:'REN-kah',   en:'hand/arm',  cat:'body', g:'f' },
+  { pl:'noga',     pron:'NOH-gah',   en:'leg/foot',  cat:'body', g:'f' },
+  { pl:'plecy',    pron:'PLEH-tsih', en:'back',      cat:'body', g:'m' },
+  { pl:'brzuch',   pron:'bzhookh',   en:'belly/stomach', cat:'body', g:'m' },
+  { pl:'serce',    pron:'SEHR-tseh', en:'heart',     cat:'body', g:'n' },
+  { pl:'włosy',    pron:'VWOH-sih',  en:'hair',      cat:'body', g:'m' },
+  { pl:'zęby',     pron:'ZEN-bih',   en:'teeth',     cat:'body', g:'m' },
+
+  // TIME
+  { pl:'dzisiaj',    pron:'DJEE-shyay',   en:'today',       cat:'time', g:'—' },
+  { pl:'jutro',      pron:'YOO-tro',      en:'tomorrow',    cat:'time', g:'—' },
+  { pl:'wczoraj',    pron:'VCHO-ray',     en:'yesterday',   cat:'time', g:'—' },
+  { pl:'teraz',      pron:'TEH-rahs',     en:'now',         cat:'time', g:'—' },
+  { pl:'rano',       pron:'RAH-no',       en:'morning',     cat:'time', g:'n' },
+  { pl:'wieczór',    pron:'VYEH-choor',   en:'evening',     cat:'time', g:'m' },
+  { pl:'noc',        pron:'nots',         en:'night',       cat:'time', g:'f' },
+  { pl:'tydzień',    pron:'TIH-djen',     en:'week',        cat:'time', g:'m' },
+  { pl:'miesiąc',    pron:'MYEH-shonts',  en:'month',       cat:'time', g:'m' },
+  { pl:'rok',        pron:'rok',          en:'year',        cat:'time', g:'m' },
+  { pl:'godzina',    pron:'go-DJEE-nah',  en:'hour/o\'clock', cat:'time', g:'f' },
+  { pl:'minuta',     pron:'mee-NOO-tah',  en:'minute',      cat:'time', g:'f' },
+  { pl:'poniedziałek', pron:'po-nyeh-DJAH-wek', en:'Monday', cat:'time', g:'m' },
+  { pl:'wtorek',     pron:'VTOH-rek',     en:'Tuesday',     cat:'time', g:'m' },
+  { pl:'środa',      pron:'SHROH-dah',    en:'Wednesday',   cat:'time', g:'f' },
+  { pl:'czwartek',   pron:'CHVAR-tek',    en:'Thursday',    cat:'time', g:'m' },
+  { pl:'piątek',     pron:'PYON-tek',     en:'Friday',      cat:'time', g:'m' },
+  { pl:'sobota',     pron:'so-BOH-tah',   en:'Saturday',    cat:'time', g:'f' },
+  { pl:'niedziela',  pron:'nyeh-DJEH-lah',en:'Sunday',      cat:'time', g:'f' },
+
+  // PLACES
+  { pl:'dom',        pron:'dom',          en:'house/home',  cat:'places', g:'m' },
+  { pl:'szkoła',     pron:'SHKOH-wah',    en:'school',      cat:'places', g:'f' },
+  { pl:'sklep',      pron:'sklep',        en:'shop/store',  cat:'places', g:'m' },
+  { pl:'ulica',      pron:'oo-LEE-tsah',  en:'street',      cat:'places', g:'f' },
+  { pl:'miasto',     pron:'MYAH-stoh',    en:'city/town',   cat:'places', g:'n' },
+  { pl:'kraj',       pron:'kray',         en:'country',     cat:'places', g:'m' },
+  { pl:'park',       pron:'pahk',         en:'park',        cat:'places', g:'m' },
+  { pl:'restauracja',pron:'res-taw-RAHT-syah', en:'restaurant', cat:'places', g:'f' },
+  { pl:'szpital',    pron:'SHPEE-tahl',   en:'hospital',    cat:'places', g:'m' },
+  { pl:'dworzec',    pron:'DVOH-zhets',   en:'station',     cat:'places', g:'m' },
+  { pl:'lotnisko',   pron:'lot-NEE-sko',  en:'airport',     cat:'places', g:'n' },
+  { pl:'biblioteka', pron:'bee-blyoh-TEH-kah', en:'library', cat:'places', g:'f' },
+  { pl:'kościół',    pron:'KOSH-chyoow',  en:'church',      cat:'places', g:'m' },
+
+  // VERBS
+  { pl:'być',        pron:'bich',         en:'to be',       cat:'verbs', g:'—' },
+  { pl:'mieć',       pron:'myech',        en:'to have',     cat:'verbs', g:'—' },
+  { pl:'chcieć',     pron:'khchech',      en:'to want',     cat:'verbs', g:'—' },
+  { pl:'iść',        pron:'eeshch',       en:'to go (on foot)', cat:'verbs', g:'—' },
+  { pl:'jechać',     pron:'YEH-khach',    en:'to go (by vehicle)', cat:'verbs', g:'—' },
+  { pl:'mówić',      pron:'MOO-veech',    en:'to speak/say',cat:'verbs', g:'—' },
+  { pl:'jeść',       pron:'yeshch',       en:'to eat',      cat:'verbs', g:'—' },
+  { pl:'pić',        pron:'peech',        en:'to drink',    cat:'verbs', g:'—' },
+  { pl:'rozumieć',   pron:'ro-ZOO-myech', en:'to understand', cat:'verbs', g:'—' },
+  { pl:'wiedzieć',   pron:'VYEH-djech',   en:'to know (a fact)', cat:'verbs', g:'—' },
+  { pl:'znać',       pron:'znach',        en:'to know (a person)', cat:'verbs', g:'—' },
+  { pl:'lubić',      pron:'LOO-beech',    en:'to like',     cat:'verbs', g:'—' },
+  { pl:'pracować',   pron:'prah-TSOH-vach', en:'to work',   cat:'verbs', g:'—' },
+  { pl:'kupować',    pron:'koo-POH-vach', en:'to buy',      cat:'verbs', g:'—' },
+  { pl:'czytać',     pron:'CHIH-tach',    en:'to read',     cat:'verbs', g:'—' },
+  { pl:'pisać',      pron:'PEE-sach',     en:'to write',    cat:'verbs', g:'—' },
+  { pl:'słuchać',    pron:'SWOO-khach',   en:'to listen',   cat:'verbs', g:'—' },
+  { pl:'widzieć',    pron:'VEE-djech',    en:'to see',      cat:'verbs', g:'—' },
+  { pl:'spać',       pron:'spach',        en:'to sleep',    cat:'verbs', g:'—' },
+  { pl:'mieszkać',   pron:'MYESH-kach',   en:'to live/reside', cat:'verbs', g:'—' },
+
+  // ADJECTIVES
+  { pl:'duży',       pron:'DOO-zhih',     en:'big',         cat:'adjectives', g:'m' },
+  { pl:'mały',       pron:'MAH-wih',      en:'small',       cat:'adjectives', g:'m' },
+  { pl:'dobry',      pron:'DOH-brih',     en:'good',        cat:'adjectives', g:'m' },
+  { pl:'zły',        pron:'zwih',         en:'bad/angry',   cat:'adjectives', g:'m' },
+  { pl:'nowy',       pron:'NOH-vih',      en:'new',         cat:'adjectives', g:'m' },
+  { pl:'stary',      pron:'STAH-rih',     en:'old',         cat:'adjectives', g:'m' },
+  { pl:'piękny',     pron:'PYEN-kih',     en:'beautiful',   cat:'adjectives', g:'m' },
+  { pl:'drogi',      pron:'DROH-gee',     en:'expensive',   cat:'adjectives', g:'m' },
+  { pl:'tani',       pron:'TAH-nyee',     en:'cheap',       cat:'adjectives', g:'m' },
+  { pl:'szybki',     pron:'SHIB-kee',     en:'fast',        cat:'adjectives', g:'m' },
+  { pl:'wolny',      pron:'VOL-nih',      en:'slow/free',   cat:'adjectives', g:'m' },
+  { pl:'ciepły',     pron:'CHYEP-wih',    en:'warm',        cat:'adjectives', g:'m' },
+  { pl:'zimny',      pron:'ZEEM-nih',     en:'cold',        cat:'adjectives', g:'m' },
+  { pl:'ciężki',     pron:'CHYENSH-kee',  en:'heavy',       cat:'adjectives', g:'m' },
+  { pl:'lekki',      pron:'LEK-kee',      en:'light/easy',  cat:'adjectives', g:'m' },
+];
+
+const SENTENCES = [
+  { pl:'Jak się nazywasz?',       pron:'yahk sheh nah-ZIH-vahsh', en:'What is your name?',         cat:'greetings' },
+  { pl:'Nazywam się Anna.',       pron:'nah-ZIH-vahm sheh AH-nah', en:'My name is Anna.',           cat:'greetings' },
+  { pl:'Skąd jesteś?',           pron:'skond YEH-stesh',          en:'Where are you from?',         cat:'greetings' },
+  { pl:'Jestem z Polski.',        pron:'YEH-stem s POL-skee',      en:'I am from Poland.',           cat:'greetings' },
+  { pl:'Mówię trochę po polsku.', pron:'MOO-vyeh TRO-kheh po POL-skoo', en:'I speak a little Polish.', cat:'greetings' },
+  { pl:'Nie rozumiem.',           pron:'nyeh ro-ZOO-myem',         en:'I do not understand.',        cat:'greetings' },
+  { pl:'Proszę mówić wolniej.',   pron:'PROH-sheh MOO-veech VOL-nyey', en:'Please speak slower.',   cat:'greetings' },
+  { pl:'Ile to kosztuje?',        pron:'EE-leh to kosh-TOO-yeh',   en:'How much does it cost?',      cat:'food' },
+  { pl:'Poproszę kawę.',          pron:'po-PROH-sheh KAH-veh',     en:'A coffee please.',            cat:'food' },
+  { pl:'Jestem głodny.',          pron:'YEH-stem GWOOD-nih',       en:'I am hungry.',                cat:'food' },
+  { pl:'To jest pyszne!',         pron:'to yest PISH-neh',         en:'This is delicious!',          cat:'food' },
+  { pl:'Rachunek, proszę.',       pron:'rah-KHOO-nek PROH-sheh',   en:'The bill, please.',           cat:'food' },
+  { pl:'Gdzie jest toaleta?',     pron:'GDJEH yest to-ah-LEH-tah', en:'Where is the toilet?',        cat:'places' },
+  { pl:'Mieszkam w Warszawie.',   pron:'MYESH-kahm v var-SHAH-vyeh', en:'I live in Warsaw.',         cat:'places' },
+  { pl:'To jest daleko.',         pron:'to yest dah-LEH-ko',       en:'It is far.',                  cat:'places' },
+  { pl:'Skręć w lewo.',           pron:'skrehnch v LEH-vo',        en:'Turn left.',                  cat:'places' },
+  { pl:'Skręć w prawo.',          pron:'skrehnch v PRAH-vo',       en:'Turn right.',                 cat:'places' },
+  { pl:'Ile masz lat?',           pron:'EE-leh mahsh laht',        en:'How old are you?',            cat:'numbers' },
+  { pl:'Mam trzydzieści lat.',    pron:'mahm tshih-DJESH-chee laht', en:'I am 30 years old.',       cat:'numbers' },
+  { pl:'Która godzina?',          pron:'KTOO-rah go-DJEE-nah',     en:'What time is it?',            cat:'time' },
+  { pl:'Jest pierwsza.',          pron:'yest PYERV-shah',           en:'It is one o\'clock.',        cat:'time' },
+  { pl:'Do jutra!',               pron:'do YOO-trah',              en:'Until tomorrow! / See you!',  cat:'time' },
+  { pl:'Mam brata i siostrę.',    pron:'mahm BRAH-tah ee SHYO-streh', en:'I have a brother and a sister.', cat:'family' },
+  { pl:'Moja mama jest miła.',    pron:'MOH-yah MAH-mah yest MEE-wah', en:'My mum is nice.',        cat:'family' },
+  { pl:'Lubię czytać książki.',   pron:'LOO-byeh CHIH-tach KSYON-shkee', en:'I like reading books.', cat:'verbs' },
+  { pl:'Chcę się nauczyć polskiego.', pron:'khcheh sheh nah-OO-chich pol-SKIE-go', en:'I want to learn Polish.', cat:'verbs' },
+  { pl:'Pracuję w biurze.',       pron:'prah-TSOO-yeh v BYOO-zheh', en:'I work in an office.',      cat:'verbs' },
+  { pl:'To jest ładne.',          pron:'to yest WAHD-neh',          en:'It is pretty.',              cat:'adjectives' },
+  { pl:'Pogoda jest dziś piękna.',pron:'po-GOH-dah yest djish PYEN-knah', en:'The weather is beautiful today.', cat:'adjectives' },
+];
+
+// ─── UI wiring ────────────────────────────────────────────────────────────
+document.getElementById('vocabCount').textContent = VOCAB.length;
+document.getElementById('sentCount').textContent = SENTENCES.length;
+
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  el.classList.add('show');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function checkExisting() {
+  const btn = document.getElementById('checkBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Checking…';
+  try {
+    const [vSnap, sSnap] = await Promise.all([
+      getDocs(collection(db, VOCAB_COLLECTION)),
+      getDocs(collection(db, SENTENCES_COLLECTION))
+    ]);
+    document.getElementById('existingVocabCount').textContent = vSnap.size;
+    document.getElementById('existingSentCount').textContent = sSnap.size;
+    document.getElementById('statusBanner').classList.remove('show');
+    log(`Found ${vSnap.size} existing vocabulary docs and ${sSnap.size} existing sentence docs.`);
+  } catch (err) {
+    console.error(err);
+    document.getElementById('statusBanner').classList.add('show');
+    log('Could not reach Firestore — check your firebaseConfig. ' + err.message, 'err');
+  }
+  btn.disabled = false;
+  btn.textContent = '🔍 Check what\'s already in Firestore';
+}
+
+function togglePreview() {
+  const area = document.getElementById('previewArea');
+  if (area.style.display === 'none') {
+    area.style.display = '';
+    area.innerHTML = `
+      <div class="preview-wrap">
+        <table class="preview-table">
+          <thead><tr><th>Polish</th><th>English</th><th>Category</th></tr></thead>
+          <tbody>
+            ${VOCAB.map(v => `<tr><td>${v.pl}</td><td>${v.en}</td><td>${v.cat}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } else {
+    area.style.display = 'none';
+  }
+}
+
+async function uploadAll() {
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Uploading…';
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('log').classList.add('show');
+
+  try {
+    const vocabBatch = writeBatch(db);
+    VOCAB.forEach(word => {
+      const ref = doc(collection(db, VOCAB_COLLECTION));
+      vocabBatch.set(ref, word);
+    });
+    await vocabBatch.commit();
+    log(`✓ Uploaded ${VOCAB.length} vocabulary words to "${VOCAB_COLLECTION}"`, 'ok');
+
+    const sentBatch = writeBatch(db);
+    SENTENCES.forEach(sentence => {
+      const ref = doc(collection(db, SENTENCES_COLLECTION));
+      sentBatch.set(ref, sentence);
+    });
+    await sentBatch.commit();
+    log(`✓ Uploaded ${SENTENCES.length} sentences to "${SENTENCES_COLLECTION}"`, 'ok');
+
+    log('Done! You can now load the main app — it will read from Firestore.', 'ok');
+    document.getElementById('statusBanner').classList.remove('show');
+  } catch (err) {
+    console.error(err);
+    log('Upload failed: ' + err.message, 'err');
+    document.getElementById('statusBanner').classList.add('show');
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⬆ Upload vocabulary + sentences to Firebase';
+}
+
+Object.assign(window, { checkExisting, togglePreview, uploadAll });
+</script>
+</body>
+</html>
