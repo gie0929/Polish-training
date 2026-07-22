@@ -1546,13 +1546,14 @@ const firebaseConfig = {
   appId: "1:96534832794:web:413f4ee974eb84691f6123"
 };
 
+
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
-
+ 
 const VOCAB_COLLECTION = 'vocabulary';
 const SENTENCES_COLLECTION = 'sentences';
 const MYWORDS_COLLECTION = 'myWords';
-
+ 
 // ─── STATIC UI CONFIG (categories are just filter labels, not learning data) ──
 const CATEGORIES = [
   { id: 'all',        label: 'All',         emoji: '🌟' },
@@ -1567,11 +1568,11 @@ const CATEGORIES = [
   { id: 'verbs',      label: 'Verbs',       emoji: '⚡' },
   { id: 'adjectives', label: 'Adjectives',  emoji: '✨' },
 ];
-
+ 
 // ─── DATA (now loaded from Firestore instead of hardcoded) ──────────────────
 let VOCAB = [];
 let SENTENCES = [];
-
+ 
 async function loadVocabAndSentences() {
   try {
     const [vocabSnap, sentSnap] = await Promise.all([
@@ -1586,7 +1587,7 @@ async function loadVocabAndSentences() {
     document.getElementById('fbStatus').classList.add('show');
   }
 }
-
+ 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let currentMode = 'flashcards';
 let currentCat = 'all';
@@ -1595,7 +1596,7 @@ let cards = [];
 let cardIndex = 0;
 let isFlipped = false;
 let score = { correct: 0, wrong: 0, total: 0 };
-
+ 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 async function init() {
   renderCategories();
@@ -1603,7 +1604,7 @@ async function init() {
   selectCategory('all');
   await mwRenderList();
 }
-
+ 
 function renderCategories() {
   const bar = document.getElementById('categoryBar');
   bar.innerHTML = CATEGORIES.map(c =>
@@ -1612,20 +1613,20 @@ function renderCategories() {
     </button>`
   ).join('');
 }
-
+ 
 function selectCategory(id) {
   currentCat = id;
   renderCategories();
-
+ 
   cards = (id === 'all' ? VOCAB : VOCAB.filter(v => v.cat === id));
   cardIndex = 0;
   isFlipped = false;
-
+ 
   if (currentMode === 'flashcards') renderCard();
   if (currentMode === 'vocab') renderVocab();
   if (currentMode === 'sentences') renderSentences();
 }
-
+ 
 // ─── MODE ────────────────────────────────────────────────────────────────────
 function setMode(mode) {
   currentMode = mode;
@@ -1640,22 +1641,22 @@ function setMode(mode) {
   document.getElementById('mywordsMode').style.display      = mode === 'mywords'      ? '' : 'none';
   const hideCats = mode === 'conversation' || mode === 'mywords';
   document.getElementById('categoryBar').style.display      = hideCats ? 'none' : '';
-
+ 
   if (mode === 'flashcards')   renderCard();
   if (mode === 'vocab')        renderVocab();
   if (mode === 'sentences')    renderSentences();
   if (mode === 'conversation' && !convStarted) startScenario('cafe');
   if (mode === 'mywords')      mwRenderList();
 }
-
+ 
 // ─── FLASHCARDS ──────────────────────────────────────────────────────────────
 function renderCard() {
   if (!cards.length) return;
   const card = cards[cardIndex];
-
+ 
   document.getElementById('cardInner').classList.remove('flipped');
   isFlipped = false;
-
+ 
   if (!isReverse) {
     document.getElementById('frontLabel').textContent = 'Polish';
     document.getElementById('backLabel').textContent  = 'English';
@@ -1675,7 +1676,7 @@ function renderCard() {
     document.getElementById('frontSpeak').onclick = (e) => { e.stopPropagation(); speak(card.en, 'en-GB'); };
     document.getElementById('backSpeak').onclick  = (e) => { e.stopPropagation(); speak(card.pl, 'pl-PL'); };
   }
-
+ 
   const gBadge = document.getElementById('frontGender');
   if (!isReverse && card.g && card.g !== '—') {
     const labels = { m:'masculine', f:'feminine', n:'neuter' };
@@ -1684,28 +1685,28 @@ function renderCard() {
   } else {
     gBadge.innerHTML = '';
   }
-
+ 
   document.getElementById('progressPill').textContent = `${cardIndex + 1} / ${cards.length}`;
   updateScore();
 }
-
+ 
 function flipCard() {
   isFlipped = !isFlipped;
   document.getElementById('cardInner').classList.toggle('flipped', isFlipped);
 }
-
+ 
 function nextCard() {
   if (!cards.length) return;
   cardIndex = (cardIndex + 1) % cards.length;
   renderCard();
 }
-
+ 
 function prevCard() {
   if (!cards.length) return;
   cardIndex = (cardIndex - 1 + cards.length) % cards.length;
   renderCard();
 }
-
+ 
 function shuffleCards() {
   for (let i = cards.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -1715,7 +1716,7 @@ function shuffleCards() {
   renderCard();
   showToast('🔀 Cards shuffled!', 'correct');
 }
-
+ 
 function markCard(correct) {
   if (!isFlipped) {
     flipCard();
@@ -1727,7 +1728,7 @@ function markCard(correct) {
   updateScore();
   setTimeout(nextCard, 400);
 }
-
+ 
 function updateScore() {
   document.getElementById('scoreCorrect').textContent = score.correct;
   document.getElementById('scoreWrong').textContent   = score.wrong;
@@ -1735,12 +1736,12 @@ function updateScore() {
   const pct = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
   document.getElementById('scoreBarInner').style.width = pct + '%';
 }
-
+ 
 function resetScore() {
   score = { correct:0, wrong:0, total:0 };
   updateScore();
 }
-
+ 
 function toggleReverse() {
   isReverse = !isReverse;
   const track = document.getElementById('toggleTrack');
@@ -1750,17 +1751,17 @@ function toggleReverse() {
   document.getElementById('reverseBadge').style.display = isReverse ? 'flex' : 'none';
   renderCard();
 }
-
+ 
 // ─── VOCAB TABLE ────────────────────────────────────────────────────────────
 function renderVocab() {
   const data = currentCat === 'all' ? VOCAB : VOCAB.filter(v => v.cat === currentCat);
   const catObj = CATEGORIES.find(c => c.id === currentCat);
   document.getElementById('vocabTitle').textContent = `${catObj.emoji} ${catObj.label}`;
   document.getElementById('vocabCount').textContent = `${data.length} words`;
-
+ 
   const gLabels = { m:'masc.', f:'fem.', n:'neut.', '—':'—' };
   const gCls    = { m:'gender-m', f:'gender-f', n:'gender-n', '—':'' };
-
+ 
   document.getElementById('vocabBody').innerHTML = data.length ? data.map((v) =>
     `<tr>
       <td><div class="word-pl">${v.pl}</div></td>
@@ -1774,14 +1775,14 @@ function renderVocab() {
     </tr>`
   ).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">No vocabulary loaded from Firebase yet.</td></tr>`;
 }
-
+ 
 // ─── SENTENCES ───────────────────────────────────────────────────────────────
 function renderSentences() {
   const data = currentCat === 'all' ? SENTENCES : SENTENCES.filter(s => s.cat === currentCat);
   const catObj = CATEGORIES.find(c => c.id === currentCat);
   document.getElementById('sentTitle').textContent = `${catObj.emoji} ${catObj.label} Phrases`;
   document.getElementById('sentCount').textContent = `${data.length} phrases`;
-
+ 
   document.getElementById('sentenceList').innerHTML = data.length
     ? data.map((s, i) => `
       <div class="sentence-card">
@@ -1798,7 +1799,7 @@ function renderSentences() {
       </div>`).join('')
     : `<div class="empty-state"><div class="emoji">💬</div><p>No sentences in this category yet.</p></div>`;
 }
-
+ 
 // ─── TTS ─────────────────────────────────────────────────────────────────────
 function speak(text, lang) {
   if (!window.speechSynthesis) return;
@@ -1807,28 +1808,28 @@ function speak(text, lang) {
   utter.lang = lang;
   utter.rate = 0.85;
   utter.pitch = 1;
-
+ 
   const voices = window.speechSynthesis.getVoices();
   const match = voices.find(v => v.lang.startsWith(lang.split('-')[0]));
   if (match) utter.voice = match;
-
+ 
   window.speechSynthesis.speak(utter);
 }
-
+ 
 function speakFront() {
   const card = cards[cardIndex];
   speak(isReverse ? card.en : card.pl, isReverse ? 'en-GB' : 'pl-PL');
 }
-
+ 
 function speakBack() {
   const card = cards[cardIndex];
   speak(isReverse ? card.pl : card.en, isReverse ? 'pl-PL' : 'en-GB');
 }
-
+ 
 if (window.speechSynthesis) {
   window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 }
-
+ 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 let toastTimer;
 function showToast(msg, type) {
@@ -1841,7 +1842,7 @@ function showToast(msg, type) {
   document.body.appendChild(t);
   toastTimer = setTimeout(() => t.remove(), 1800);
 }
-
+ 
 // ─── KEYBOARD ─────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (currentMode !== 'flashcards') return;
@@ -1852,9 +1853,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'n' || e.key === 'N') markCard(false);
   if (e.key === 'p' || e.key === 'P') speakFront();
 });
-
+ 
 // ─── CONVERSATION PRACTICE ───────────────────────────────────────────────────
-
+ 
 const SCENARIOS = {
   cafe: {
     name: 'At the Café',
@@ -1863,23 +1864,23 @@ const SCENARIOS = {
     systemPrompt: `You are Agnieszka, a friendly Polish café worker helping an English speaker practice A1 Polish. 
 Speak ONLY in Polish in your conversational lines. Keep sentences very short and simple (A1 level). 
 The scenario: the learner has just walked into a café in Warsaw.
-
+ 
 Rules:
 - Greet the customer and ask what they want (Dzień dobry! Co podać?)
 - React naturally to their order in Polish
 - If they ask for the bill, say the total in Polish
 - Keep the conversation going with simple A1 questions (max 1-2 sentences per turn)
 - After 6-8 exchanges, wrap up the scenario warmly
-
+ 
 After EACH of your Polish lines, on a new line write:
 EN: [English translation of what you just said]
-
+ 
 Then analyse the learner's most recent Polish input (if any) and write a correction block:
 CORRECTION: [NONE if correct or near-correct | MINOR: <note> | MAJOR: corrected sentence]
-
+ 
 Then suggest 2-3 short Polish reply options the learner could use:
 HINTS: [option1] | [option2] | [option3]
-
+ 
 Format strictly:
 <Polish line(s)>
 EN: <translation>
@@ -1891,14 +1892,14 @@ HINTS: <hint1> | <hint2> | <hint3>`
     emoji: '👋',
     goal: 'Introduce yourself: your name, where you\'re from, and what you do.',
     systemPrompt: `You are Agnieszka, a friendly Polish person who has just met a foreign learner at a language exchange event. Help them practice A1 Polish introductions.
-
+ 
 Rules:
 - Start by introducing yourself (Cześć! Jestem Agnieszka.)
 - Ask simple questions: name, origin, age, job, languages spoken
 - Keep Polish simple, A1 level only
 - React warmly to their answers
 - After 6-8 exchanges, end the conversation naturally
-
+ 
 After EACH of your Polish lines, on a new line write:
 EN: [English translation]
 CORRECTION: [NONE | MINOR: <note> | MAJOR: corrected sentence]
@@ -1909,13 +1910,13 @@ HINTS: [hint1] | [hint2] | [hint3]`
     emoji: '🛒',
     goal: 'Ask for items, ask the price, and pay.',
     systemPrompt: `You are Agnieszka, a friendly Polish shop assistant. The learner is shopping in a small Polish grocery store. Help them practice A1 Polish.
-
+ 
 Rules:
 - Greet the customer (Dzień dobry! W czym mogę pomóc?)
 - Help them find items, tell them prices in Polish
 - Keep everything A1: short sentences, basic numbers and items
 - After 6-8 exchanges, complete the transaction
-
+ 
 After EACH of your Polish lines, on a new line write:
 EN: [English translation]
 CORRECTION: [NONE | MINOR: <note> | MAJOR: corrected sentence]
@@ -1926,13 +1927,13 @@ HINTS: [hint1] | [hint2] | [hint3]`
     emoji: '🗺️',
     goal: 'Ask how to get to a café, a park, and a train station.',
     systemPrompt: `You are Agnieszka, a helpful Polish person on the street. The learner is a tourist who needs directions in Warsaw. Help them practice A1 Polish.
-
+ 
 Rules:
 - Wait for them to approach you and ask something
 - Give simple directions: w lewo, w prawo, prosto, blisko, daleko
 - A1 level only: short sentences
 - After 6-8 exchanges, wish them a good day
-
+ 
 After EACH of your Polish lines, on a new line write:
 EN: [English translation]
 CORRECTION: [NONE | MINOR: <note> | MAJOR: corrected sentence]
@@ -1943,50 +1944,50 @@ HINTS: [hint1] | [hint2] | [hint3]`
     emoji: '👨‍👩‍👧',
     goal: 'Talk about your family, where you live, and what you like.',
     systemPrompt: `You are Agnieszka, a Polish friend chatting casually. Help the learner practice talking about their family and daily life at A1 level.
-
+ 
 Rules:
 - Start with a warm greeting and ask about their family
 - Ask simple questions: Masz rodzeństwo? Gdzie mieszkasz? Co lubisz?
 - A1 level only, very simple sentences
 - After 6-8 exchanges, wrap up warmly
-
+ 
 After EACH of your Polish lines, on a new line write:
 EN: [English translation]
 CORRECTION: [NONE | MINOR: <note> | MAJOR: corrected sentence]
 HINTS: [hint1] | [hint2] | [hint3]`
   }
 };
-
+ 
 let convStarted = false;
 let currentScenario = 'cafe';
 let convHistory = [];
 let autoTTS = true;
 let isBotTyping = false;
-
+ 
 function startScenario(id) {
   currentScenario = id;
   convStarted = true;
-
+ 
   document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById(`sc-btn-${id}`);
   if (btn) btn.classList.add('active');
-
+ 
   const sc = SCENARIOS[id];
   document.getElementById('scenarioIntro').style.display = '';
   document.getElementById('introName').textContent = `${sc.emoji} ${sc.name}`;
   document.getElementById('introGoal').textContent = `🎯 Goal: ${sc.goal}`;
-
+ 
   convHistory = [];
   document.getElementById('chatMessages').innerHTML = '';
   document.getElementById('chatInput').value = '';
-
+ 
   getBotReply('START_CONVERSATION');
 }
-
+ 
 function restartConversation() {
   startScenario(currentScenario);
 }
-
+ 
 function toggleAutoTTS() {
   autoTTS = !autoTTS;
   const btn = document.getElementById('ttsAutoBtn');
@@ -1994,60 +1995,60 @@ function toggleAutoTTS() {
   btn.style.borderColor = autoTTS ? 'var(--polish-red)' : '';
   btn.style.color = autoTTS ? 'var(--polish-red)' : '';
 }
-
+ 
 function handleChatKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendUserMessage();
   }
 }
-
+ 
 function autoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 100) + 'px';
 }
-
+ 
 function sendUserMessage() {
   if (isBotTyping) return;
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if (!text) return;
-
+ 
   appendMessage('user', text, null, null, null);
   convHistory.push({ role: 'user', content: text });
   input.value = '';
   input.style.height = 'auto';
-
+ 
   getBotReply(text);
 }
-
+ 
 function useHint(text) {
   document.getElementById('chatInput').value = text;
   document.getElementById('chatInput').focus();
 }
-
+ 
 function appendMessage(role, plText, enText, correction, hints) {
   const msgs = document.getElementById('chatMessages');
-
+ 
   const div = document.createElement('div');
   div.className = `msg ${role}`;
-
+ 
   const avatar = document.createElement('div');
   avatar.className = 'msg-avatar';
   avatar.textContent = role === 'bot' ? '🧑‍🏫' : '🧑';
-
+ 
   const body = document.createElement('div');
   body.className = 'msg-body';
-
+ 
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
-
+ 
   if (role === 'bot') {
     const plSpan = document.createElement('span');
     plSpan.className = 'msg-pl';
     plSpan.textContent = plText;
     bubble.appendChild(plSpan);
-
+ 
     if (enText) {
       const enSpan = document.createElement('span');
       enSpan.className = 'msg-en';
@@ -2057,9 +2058,9 @@ function appendMessage(role, plText, enText, correction, hints) {
   } else {
     bubble.textContent = plText;
   }
-
+ 
   body.appendChild(bubble);
-
+ 
   if (role === 'bot' && plText) {
     const actions = document.createElement('div');
     actions.className = 'msg-actions';
@@ -2069,12 +2070,12 @@ function appendMessage(role, plText, enText, correction, hints) {
     ttsBtn.onclick = () => speak(plText, 'pl-PL');
     actions.appendChild(ttsBtn);
     body.appendChild(actions);
-
+ 
     if (autoTTS) {
       setTimeout(() => speak(plText, 'pl-PL'), 300);
     }
   }
-
+ 
   if (correction && correction !== 'NONE') {
     const corrDiv = document.createElement('div');
     corrDiv.className = 'correction-bubble';
@@ -2089,7 +2090,7 @@ function appendMessage(role, plText, enText, correction, hints) {
     }
     body.appendChild(corrDiv);
   }
-
+ 
   if (hints && hints.length) {
     const chipWrap = document.createElement('div');
     chipWrap.className = 'hint-chips';
@@ -2102,23 +2103,23 @@ function appendMessage(role, plText, enText, correction, hints) {
     });
     body.appendChild(chipWrap);
   }
-
+ 
   div.appendChild(avatar);
   div.appendChild(body);
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
 }
-
+ 
 function showTyping() {
   const msgs = document.getElementById('chatMessages');
   const div = document.createElement('div');
   div.className = 'msg bot';
   div.id = 'typingIndicator';
-
+ 
   const avatar = document.createElement('div');
   avatar.className = 'msg-avatar';
   avatar.textContent = '🧑‍🏫';
-
+ 
   const ind = document.createElement('div');
   ind.className = 'typing-indicator';
   for (let i = 0; i < 3; i++) {
@@ -2126,24 +2127,24 @@ function showTyping() {
     dot.className = 'typing-dot';
     ind.appendChild(dot);
   }
-
+ 
   div.appendChild(avatar);
   div.appendChild(ind);
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
 }
-
+ 
 function removeTyping() {
   const ind = document.getElementById('typingIndicator');
   if (ind) ind.remove();
 }
-
+ 
 function parseAndDisplay(raw, userInput) {
   const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-
+ 
   let plLines = [], enText = '', correction = '', hints = [];
   let inPl = true;
-
+ 
   for (const line of lines) {
     if (line.startsWith('EN:')) {
       inPl = false;
@@ -2156,29 +2157,29 @@ function parseAndDisplay(raw, userInput) {
       plLines.push(line);
     }
   }
-
+ 
   const plText = plLines.join(' ');
-
+ 
   const showCorrection = userInput && userInput !== 'START_CONVERSATION' ? correction : null;
-
+ 
   appendMessage('bot', plText || raw, enText || null, showCorrection, hints);
 }
-
+ 
 async function getBotReply(userInput) {
   isBotTyping = true;
   document.getElementById('sendBtn').disabled = true;
   showTyping();
-
+ 
   const sc = SCENARIOS[currentScenario];
-
+ 
   const messages = [
     ...convHistory.slice(-12)
   ];
-
+ 
   if (userInput === 'START_CONVERSATION') {
     messages.push({ role: 'user', content: 'Please start the conversation now as described.' });
   }
-
+ 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -2190,24 +2191,24 @@ async function getBotReply(userInput) {
         messages: messages.length ? messages : [{ role: 'user', content: 'Please start the conversation now.' }]
       })
     });
-
+ 
     const data = await response.json();
     const raw = data.content?.map(c => c.text || '').join('') || '';
-
+ 
     removeTyping();
     parseAndDisplay(raw, userInput);
-
+ 
     convHistory.push({ role: 'assistant', content: raw });
-
+ 
   } catch (err) {
     removeTyping();
     appendMessage('bot', 'Przepraszam! Nie mogę teraz odpowiedzieć.', 'Sorry! I cannot reply right now. Check your connection.', null, null);
   }
-
+ 
   isBotTyping = false;
   document.getElementById('sendBtn').disabled = false;
 }
-
+ 
 // ─── MY WORDS (now backed by Firestore instead of localStorage) ─────────────
 let myWords = [];
 let mwCards  = [];
@@ -2215,7 +2216,7 @@ let mwIndex  = 0;
 let mwFlipped = false;
 let mwReverse = false;
 let mwScore  = { correct:0, wrong:0, total:0 };
-
+ 
 async function mwLoad() {
   try {
     const snap = await getDocs(collection(db, MYWORDS_COLLECTION));
@@ -2227,119 +2228,27 @@ async function mwLoad() {
     myWords = [];
   }
 }
-
-function mwClearAI() {
-  document.getElementById('mwAiBox').classList.remove('visible');
-}
-
-async function mwAIFill() {
-  const pl = document.getElementById('mwInputPl').value.trim();
-  if (!pl) { showToast('Enter a Polish word first', 'wrong'); return; }
-
-  const btn = document.getElementById('mwAiBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Looking up…';
-  const box = document.getElementById('mwAiBox');
-  box.classList.remove('visible');
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: `You are a Polish language A1 tutor. Given a Polish word, respond ONLY with a JSON object (no markdown, no explanation) with these exact keys:
-- "en": English meaning (short, clear)
-- "pron": simple phonetic pronunciation for English speakers (e.g. "hehr-BAH-tah")
-- "wordType": one of "adjective", "noun", "verb", "adverb", "other"
-- "gender": for nouns — "masculine", "feminine", "neuter", or "none"; for others — "none"
-- "forms": an array of objects showing how the word changes form. Rules by type:
-    * adjective: provide masculine, feminine, neuter, plural forms e.g. [{label:"masculine (m)", form:"dobry"},{label:"feminine (f)", form:"dobra"},{label:"neuter (n)", form:"dobre"},{label:"plural", form:"dobrzy / dobre"}]
-    * noun: provide nominative singular, nominative plural, and genitive singular e.g. [{label:"singular", form:"kot"},{label:"plural", form:"koty"},{label:"genitive", form:"kota"}]
-    * verb: provide infinitive, ja (I), ty (you), on/ona (he/she), my (we) e.g. [{label:"infinitive", form:"mieć"},{label:"ja (I)", form:"mam"},{label:"ty (you)", form:"masz"},{label:"on/ona", form:"ma"},{label:"my (we)", form:"mamy"}]
-    * adverb / other: empty array []
-- "formsNote": a single short English sentence explaining why the forms change (e.g. "Adjectives agree in gender and number with the noun they describe.")
-- "sentPl": one short A1-level Polish example sentence using the word
-- "sentEn": English translation of that sentence
-- "sentHighlight": the exact form of the word as used in sentPl`,
-        messages: [{ role: 'user', content: `Polish word: ${pl}` }]
-      })
-    });
-    const data = await resp.json();
-    const raw = data.content?.map(c => c.text||'').join('') || '{}';
-    const clean = raw.replace(/```json|```/g,'').trim();
-    const obj = JSON.parse(clean);
-
-    document.getElementById('mwAiBtn').dataset.forms     = JSON.stringify(obj.forms || []);
-    document.getElementById('mwAiBtn').dataset.formsNote = obj.formsNote || '';
-    document.getElementById('mwAiBtn').dataset.wordType  = obj.wordType || '';
-    document.getElementById('mwAiBtn').dataset.gender    = obj.gender || 'none';
-
-    if (obj.en)     document.getElementById('mwInputEn').value     = obj.en;
-    if (obj.pron)   document.getElementById('mwInputPron').value   = obj.pron;
-    if (obj.sentPl) document.getElementById('mwInputSentPl').value = obj.sentPl;
-    if (obj.sentEn) document.getElementById('mwInputSentEn').value = obj.sentEn;
-
-    const highlight = obj.sentHighlight || pl;
-    const highlightedSent = obj.sentPl
-      ? obj.sentPl.replace(new RegExp(`(${highlight})`, 'i'), '<strong>$1</strong>')
-      : '';
-
-    const formsHTML = (obj.forms && obj.forms.length)
-      ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--divider);">
-          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Forms</span>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;">
-            ${obj.forms.map(f=>`<span style="background:var(--white);border:1px solid var(--divider);border-radius:6px;padding:2px 8px;font-size:12px;"><span style="color:var(--muted);font-size:10px;">${f.label}:</span> <strong>${f.form}</strong></span>`).join('')}
-          </div>
-          ${obj.formsNote ? `<div style="font-size:11px;color:var(--muted);margin-top:5px;font-style:italic;">${obj.formsNote}</div>` : ''}
-        </div>`
-      : '';
-
-    box.innerHTML = `
-      <strong>${pl}</strong> — ${obj.en || ''}
-      ${obj.gender && obj.gender !== 'none' ? `<span style="font-size:11px;color:var(--muted);"> (${obj.gender})</span>` : ''}
-      <br><span class="ai-pron">[${obj.pron || ''}]</span>
-      ${highlightedSent ? `<div class="ai-sentence">${highlightedSent}<br><span style="color:var(--muted);font-style:italic;font-size:12px;">${obj.sentEn||''}</span></div>` : ''}
-      ${formsHTML}
-    `;
-    box.classList.add('visible');
-
-  } catch(err) {
-    box.textContent = 'Could not fetch. Fill in the fields manually.';
-    box.classList.add('visible');
-  }
-
-  btn.disabled = false;
-  btn.textContent = '✨ Auto-fill with AI';
-}
-
+ 
 async function mwAddWord() {
   const pl     = document.getElementById('mwInputPl').value.trim();
   const en     = document.getElementById('mwInputEn').value.trim();
   const pron   = document.getElementById('mwInputPron').value.trim();
   const sentPl = document.getElementById('mwInputSentPl').value.trim();
   const sentEn = document.getElementById('mwInputSentEn').value.trim();
-
-  const aiBtn = document.getElementById('mwAiBtn');
-  let forms = [], formsNote = '', wordType = '';
-  try { forms = JSON.parse(aiBtn.dataset.forms || '[]'); } catch(e) {}
-  formsNote = aiBtn.dataset.formsNote || '';
-  wordType  = aiBtn.dataset.wordType  || '';
-
+ 
   if (!pl || !en) { showToast('Polish word and English meaning are required', 'wrong'); return; }
-
+ 
   if (myWords.find(w => w.pl.toLowerCase() === pl.toLowerCase())) {
     showToast(`"${pl}" is already in My Words`, 'wrong'); return;
   }
-
+ 
   const addBtn = document.getElementById('mwAddBtn');
   addBtn.disabled = true;
   addBtn.textContent = 'Saving…';
-
+ 
   try {
     await addDoc(collection(db, MYWORDS_COLLECTION), {
-      pl, en, pron, sentPl, sentEn, forms, formsNote, wordType,
+      pl, en, pron, sentPl, sentEn,
       createdAt: serverTimestamp()
     });
   } catch (err) {
@@ -2349,22 +2258,18 @@ async function mwAddWord() {
     addBtn.textContent = '+ Add to My Words';
     return;
   }
-
+ 
   ['mwInputPl','mwInputEn','mwInputPron','mwInputSentPl','mwInputSentEn'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  aiBtn.dataset.forms = '[]';
-  aiBtn.dataset.formsNote = '';
-  aiBtn.dataset.wordType  = '';
-  document.getElementById('mwAiBox').classList.remove('visible');
-
+ 
   addBtn.disabled = false;
   addBtn.textContent = '+ Add to My Words';
-
+ 
   await mwRenderList();
   showToast(`✓ "${pl}" added to My Words!`, 'correct');
 }
-
+ 
 async function mwDeleteWord(id) {
   try {
     await deleteDoc(doc(db, MYWORDS_COLLECTION, id));
@@ -2376,25 +2281,25 @@ async function mwDeleteWord(id) {
   await mwRenderList();
   showToast('Word removed', 'wrong');
 }
-
+ 
 function mwSpeakWord(text, lang) { speak(text, lang); }
-
+ 
 async function mwRenderList() {
   await mwLoad();
   const listEl = document.getElementById('mwWordList');
   const totalPill = document.getElementById('mwTotalPill');
   const listCount = document.getElementById('mwListCount');
   const count = myWords.length;
-
+ 
   totalPill.textContent = `${count} saved`;
   listCount.textContent = `${count} word${count !== 1 ? 's' : ''}`;
-
+ 
   if (!count) {
     listEl.innerHTML = `<div class="mw-empty"><div class="mw-empty-icon">📖</div><div>No words saved yet.<br>Add your first word on the left!</div></div>`;
     document.getElementById('mwFcSection').style.display = 'none';
     return;
   }
-
+ 
   listEl.innerHTML = myWords.map(w => {
     const formsHTML = (w.forms && w.forms.length) ? `
       <div style="margin-top:8px;padding:8px 0 2px;border-top:1px solid var(--divider);">
@@ -2410,7 +2315,7 @@ async function mwRenderList() {
         </div>
         ${w.formsNote ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;font-style:italic;">💡 ${w.formsNote}</div>` : ''}
       </div>` : '';
-
+ 
     return `
     <div class="mw-word-card">
       <div class="mw-card-top">
@@ -2435,27 +2340,27 @@ async function mwRenderList() {
       </div>
     </div>`;
   }).join('');
-
+ 
   document.getElementById('mwFcSection').style.display = '';
   mwCards = [...myWords];
   mwIndex = 0;
   mwFlipped = false;
   mwRenderCard();
 }
-
+ 
 function highlightWord(sentence, word) {
   const root = word.slice(0, Math.max(3, word.length - 2));
   return sentence.replace(new RegExp(`(${root}\\S*)`, 'gi'),
     '<span style="color:var(--polish-red);font-weight:600;">$1</span>');
 }
-
+ 
 function mwRenderCard() {
   if (!mwCards.length) return;
   const w = mwCards[mwIndex];
-
+ 
   document.getElementById('mwCardInner').classList.remove('flipped');
   mwFlipped = false;
-
+ 
   if (!mwReverse) {
     document.getElementById('mwFrontLabel').textContent = 'Polish';
     document.getElementById('mwBackLabel').textContent  = 'English';
@@ -2473,14 +2378,14 @@ function mwRenderCard() {
     document.getElementById('mwBackWord').textContent   = w.pl;
     document.getElementById('mwBackPron').textContent   = w.pron ? `[${w.pron}]` : '';
   }
-
+ 
   const sentEl = document.getElementById('mwBackSentence');
   if (w.sentPl) {
     sentEl.innerHTML = `"${w.sentPl}"${w.sentEn ? `<br><span style="font-size:11px;opacity:0.75;">${w.sentEn}</span>` : ''}`;
   } else {
     sentEl.innerHTML = '';
   }
-
+ 
   const formsEl = document.getElementById('mwBackForms');
   if (w.forms && w.forms.length) {
     formsEl.innerHTML = `
@@ -2496,19 +2401,19 @@ function mwRenderCard() {
     formsEl.style.display = 'none';
     formsEl.innerHTML = '';
   }
-
+ 
   document.getElementById('mwProgressPill').textContent = `${mwIndex+1} / ${mwCards.length}`;
   mwUpdateScore();
 }
-
+ 
 function mwFlipCard() {
   mwFlipped = !mwFlipped;
   document.getElementById('mwCardInner').classList.toggle('flipped', mwFlipped);
 }
-
+ 
 function mwNextCard() { if (!mwCards.length) return; mwIndex = (mwIndex+1) % mwCards.length; mwRenderCard(); }
 function mwPrevCard() { if (!mwCards.length) return; mwIndex = (mwIndex-1+mwCards.length) % mwCards.length; mwRenderCard(); }
-
+ 
 function mwMarkCard(correct) {
   if (!mwFlipped) { mwFlipCard(); return; }
   if (correct) mwScore.correct++; else mwScore.wrong++;
@@ -2517,7 +2422,7 @@ function mwMarkCard(correct) {
   mwUpdateScore();
   setTimeout(mwNextCard, 380);
 }
-
+ 
 function mwUpdateScore() {
   document.getElementById('mwScoreCorrect').textContent = mwScore.correct;
   document.getElementById('mwScoreWrong').textContent   = mwScore.wrong;
@@ -2525,9 +2430,9 @@ function mwUpdateScore() {
   const pct = mwScore.total > 0 ? Math.round((mwScore.correct/mwScore.total)*100) : 0;
   document.getElementById('mwScoreBar').style.width = pct + '%';
 }
-
+ 
 function mwResetScore() { mwScore = {correct:0,wrong:0,total:0}; mwUpdateScore(); }
-
+ 
 function mwShuffle() {
   for (let i = mwCards.length-1; i>0; i--) {
     const j = Math.floor(Math.random()*(i+1));
@@ -2536,74 +2441,24 @@ function mwShuffle() {
   mwIndex = 0; mwRenderCard();
   showToast('🔀 Shuffled!', 'correct');
 }
-
+ 
 function mwToggleReverse() {
   mwReverse = !mwReverse;
   document.getElementById('mwToggleTrack').style.background = mwReverse ? 'var(--blue)' : 'var(--divider)';
   document.getElementById('mwToggleThumb').style.left = mwReverse ? '21px' : '3px';
   mwIndex = 0; mwRenderCard();
 }
-
+ 
 function mwSpeakFront() {
   const w = mwCards[mwIndex];
   speak(mwReverse ? w.en : w.pl, mwReverse ? 'en-GB' : 'pl-PL');
 }
-
+ 
 function mwSpeakBack() {
   const w = mwCards[mwIndex];
   speak(mwReverse ? w.pl : w.en, mwReverse ? 'pl-PL' : 'en-GB');
 }
-
-function mwExport() {
-  if (!myWords.length) { showToast('No words to export yet', 'wrong'); return; }
-  const payload = JSON.stringify({ version: 1, exported: new Date().toISOString(), words: myWords }, null, 2);
-  const blob = new Blob([payload], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `polski-my-words-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast(`✓ ${myWords.length} word${myWords.length!==1?'s':''} exported!`, 'correct');
-}
-
-async function mwImport(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      const incoming = data.words || (Array.isArray(data) ? data : null);
-      if (!incoming) { showToast('Invalid file format', 'wrong'); return; }
-
-      let added = 0, skipped = 0;
-      for (const w of incoming) {
-        if (!w.pl || !w.en) { skipped++; continue; }
-        if (myWords.find(x => x.pl.toLowerCase() === w.pl.toLowerCase())) { skipped++; continue; }
-        const { id, createdAt, ...rest } = w;
-        try {
-          await addDoc(collection(db, MYWORDS_COLLECTION), { ...rest, createdAt: serverTimestamp() });
-          added++;
-        } catch (err) {
-          console.error('Failed to import word:', w.pl, err);
-          skipped++;
-        }
-      }
-
-      await mwRenderList();
-      const msg = skipped > 0
-        ? `✓ Imported ${added} word${added!==1?'s':''} (${skipped} skipped)`
-        : `✓ Imported ${added} word${added!==1?'s':''}!`;
-      showToast(msg, 'correct');
-    } catch(err) {
-      showToast('Could not read file', 'wrong');
-    }
-    event.target.value = '';
-  };
-  reader.readAsText(file);
-}
-
+ 
 async function mwClearAll() {
   if (!myWords.length) return;
   if (!confirm(`Remove all ${myWords.length} saved word(s)? This deletes them from Firebase.`)) return;
@@ -2616,7 +2471,7 @@ async function mwClearAll() {
   await mwRenderList();
   showToast('All words cleared', 'wrong');
 }
-
+ 
 // ─── Expose functions used by inline HTML onclick/onchange handlers ─────────
 // (required because this script runs as an ES module, whose top-level
 // declarations are NOT automatically visible to inline event attributes)
@@ -2625,11 +2480,11 @@ Object.assign(window, {
   resetScore, toggleReverse, speak, speakFront, speakBack,
   startScenario, restartConversation, toggleAutoTTS, handleChatKey, autoResize,
   sendUserMessage, useHint,
-  mwClearAI, mwAIFill, mwAddWord, mwDeleteWord, mwSpeakWord, mwExport, mwImport,
+  mwAddWord, mwDeleteWord, mwSpeakWord,
   mwClearAll, mwFlipCard, mwNextCard, mwPrevCard, mwMarkCard, mwShuffle,
   mwToggleReverse, mwSpeakFront, mwSpeakBack
 });
-
+ 
 // ─── START ────────────────────────────────────────────────────────────────────
 init();
 </script>
