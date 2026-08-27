@@ -1416,7 +1416,7 @@
         <div class="field-group">
           <div class="field-row">
             <span class="field-label">Polish word *</span>
-            <input class="field-input pl-font" id="mwInputPl" placeholder="e.g. herbata" oninput="mwClearAI()">
+            <input class="field-input pl-font" id="mwInputPl" placeholder="e.g. herbata">
           </div>
           <div class="field-row">
             <span class="field-label">English meaning *</span>
@@ -1557,6 +1557,7 @@ const MYWORDS_COLLECTION = 'myWords';
 // ─── STATIC UI CONFIG (categories are just filter labels, not learning data) ──
 const CATEGORIES = [
   { id: 'all',        label: 'All',         emoji: '🌟' },
+  { id: 'saved',      label: 'My Words',    emoji: '⭐' },
   { id: 'greetings',  label: 'Greetings',   emoji: '👋' },
   { id: 'numbers',    label: 'Numbers',     emoji: '🔢' },
   { id: 'colors',     label: 'Colors',      emoji: '🎨' },
@@ -1614,14 +1615,37 @@ function renderCategories() {
   ).join('');
 }
  
-function selectCategory(id) {
+async function selectCategory(id) {
   currentCat = id;
   renderCategories();
  
-  cards = (id === 'all' ? VOCAB : VOCAB.filter(v => v.cat === id));
+  if (id === 'saved') {
+    await mwLoad(); // pull the latest saved words so this filter never shows stale data
+    cards = mapMyWordsToCards();
+  } else {
+    cards = (id === 'all' ? VOCAB : VOCAB.filter(v => v.cat === id));
+  }
   cardIndex = 0;
   isFlipped = false;
  
+  if (currentMode === 'flashcards') renderCard();
+  if (currentMode === 'vocab') renderVocab();
+  if (currentMode === 'sentences') renderSentences();
+}
+ 
+// Shared shape so saved words can be displayed anywhere VOCAB/SENTENCES normally are.
+function mapMyWordsToCards() {
+  return myWords.map(w => ({
+    id: w.id, pl: w.pl, en: w.en, pron: w.pron || '', g: '—',
+    sentPl: w.sentPl || '', sentEn: w.sentEn || ''
+  }));
+}
+ 
+// Keeps the "My Words" category filter live after words are added/removed/cleared.
+function refreshSavedWordsView() {
+  if (currentCat !== 'saved') return;
+  cards = mapMyWordsToCards();
+  cardIndex = 0;
   if (currentMode === 'flashcards') renderCard();
   if (currentMode === 'vocab') renderVocab();
   if (currentMode === 'sentences') renderSentences();
@@ -1661,7 +1685,7 @@ function renderCard() {
     document.getElementById('frontLabel').textContent = 'Polish';
     document.getElementById('backLabel').textContent  = 'English';
     document.getElementById('frontWord').textContent  = card.pl;
-    document.getElementById('frontPron').textContent  = `[${card.pron}]`;
+    document.getElementById('frontPron').textContent  = card.pron ? `[${card.pron}]` : '';
     document.getElementById('backWord').textContent   = card.en;
     document.getElementById('backPron').textContent   = '';
     document.getElementById('frontSpeak').onclick = (e) => { e.stopPropagation(); speak(card.pl, 'pl-PL'); };
@@ -1672,7 +1696,7 @@ function renderCard() {
     document.getElementById('frontWord').textContent  = card.en;
     document.getElementById('frontPron').textContent  = '';
     document.getElementById('backWord').textContent   = card.pl;
-    document.getElementById('backPron').textContent   = `[${card.pron}]`;
+    document.getElementById('backPron').textContent   = card.pron ? `[${card.pron}]` : '';
     document.getElementById('frontSpeak').onclick = (e) => { e.stopPropagation(); speak(card.en, 'en-GB'); };
     document.getElementById('backSpeak').onclick  = (e) => { e.stopPropagation(); speak(card.pl, 'pl-PL'); };
   }
@@ -1754,7 +1778,7 @@ function toggleReverse() {
  
 // ─── VOCAB TABLE ────────────────────────────────────────────────────────────
 function renderVocab() {
-  const data = currentCat === 'all' ? VOCAB : VOCAB.filter(v => v.cat === currentCat);
+  const data = currentCat === 'saved' ? myWords : currentCat === 'all' ? VOCAB : VOCAB.filter(v => v.cat === currentCat);
   const catObj = CATEGORIES.find(c => c.id === currentCat);
   document.getElementById('vocabTitle').textContent = `${catObj.emoji} ${catObj.label}`;
   document.getElementById('vocabCount').textContent = `${data.length} words`;
@@ -1762,10 +1786,14 @@ function renderVocab() {
   const gLabels = { m:'masc.', f:'fem.', n:'neut.', '—':'—' };
   const gCls    = { m:'gender-m', f:'gender-f', n:'gender-n', '—':'' };
  
+  const emptyMsg = currentCat === 'saved'
+    ? 'You haven\'t saved any words yet — add some in the ⭐ My Words tab.'
+    : 'No vocabulary loaded from Firebase yet.';
+ 
   document.getElementById('vocabBody').innerHTML = data.length ? data.map((v) =>
     `<tr>
       <td><div class="word-pl">${v.pl}</div></td>
-      <td><div class="word-pron">[${v.pron}]</div></td>
+      <td><div class="word-pron">${v.pron ? `[${v.pron}]` : ''}</div></td>
       <td><div class="word-en">${v.en}</div></td>
       <td>${v.g && v.g !== '—' ? `<span class="card-gender ${gCls[v.g]}" style="font-size:11px;">${gLabels[v.g]}</span>` : '—'}</td>
       <td>
@@ -1773,15 +1801,21 @@ function renderVocab() {
         <button class="tts-mini" onclick="speak('${(v.en||'').replace(/'/g,"\\'")}','en-GB')" title="Hear English" style="margin-left:4px;">🔊 EN</button>
       </td>
     </tr>`
-  ).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">No vocabulary loaded from Firebase yet.</td></tr>`;
+  ).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">${emptyMsg}</td></tr>`;
 }
  
 // ─── SENTENCES ───────────────────────────────────────────────────────────────
 function renderSentences() {
-  const data = currentCat === 'all' ? SENTENCES : SENTENCES.filter(s => s.cat === currentCat);
+  const data = currentCat === 'saved'
+    ? myWords.filter(w => w.sentPl).map(w => ({ pl: w.sentPl, en: w.sentEn || '', pron: '' }))
+    : currentCat === 'all' ? SENTENCES : SENTENCES.filter(s => s.cat === currentCat);
   const catObj = CATEGORIES.find(c => c.id === currentCat);
   document.getElementById('sentTitle').textContent = `${catObj.emoji} ${catObj.label} Phrases`;
   document.getElementById('sentCount').textContent = `${data.length} phrases`;
+ 
+  const emptyMsg = currentCat === 'saved'
+    ? 'None of your saved words have an example sentence yet.'
+    : 'No sentences in this category yet.';
  
   document.getElementById('sentenceList').innerHTML = data.length
     ? data.map((s, i) => `
@@ -1789,7 +1823,7 @@ function renderSentences() {
         <div class="sentence-num">${String(i+1).padStart(2,'0')}</div>
         <div class="sentence-content">
           <div class="sentence-pl">${s.pl}</div>
-          <div class="sentence-pron">[${s.pron}]</div>
+          <div class="sentence-pron">${s.pron ? `[${s.pron}]` : ''}</div>
           <div class="sentence-en">${s.en}</div>
         </div>
         <div class="sentence-actions">
@@ -1797,7 +1831,7 @@ function renderSentences() {
           <button class="tts-mini" onclick="speak('${(s.en||'').replace(/'/g,"\\'")}','en-GB')" title="Hear English">🔊 EN</button>
         </div>
       </div>`).join('')
-    : `<div class="empty-state"><div class="emoji">💬</div><p>No sentences in this category yet.</p></div>`;
+    : `<div class="empty-state"><div class="emoji">💬</div><p>${emptyMsg}</p></div>`;
 }
  
 // ─── TTS ─────────────────────────────────────────────────────────────────────
@@ -2297,10 +2331,30 @@ async function mwRenderList() {
   if (!count) {
     listEl.innerHTML = `<div class="mw-empty"><div class="mw-empty-icon">📖</div><div>No words saved yet.<br>Add your first word on the left!</div></div>`;
     document.getElementById('mwFcSection').style.display = 'none';
+    refreshSavedWordsView();
     return;
   }
  
   listEl.innerHTML = myWords.map(w => {
+    try {
+      return mwRenderWordCard(w);
+    } catch (err) {
+      // A single malformed saved word must not blank out the entire list.
+      console.error('Failed to render word card:', w, err);
+      return `<div class="mw-word-card"><div class="mw-pl">${w.pl || '(unknown)'}</div><div style="color:var(--polish-red);font-size:12px;">⚠️ Could not render this word.</div>
+        <div class="mw-card-actions"><button class="mw-action-btn del" onclick="mwDeleteWord('${w.id}')">✕ Remove</button></div></div>`;
+    }
+  }).join('');
+
+  document.getElementById('mwFcSection').style.display = '';
+  mwCards = [...myWords];
+  mwIndex = 0;
+  mwFlipped = false;
+  mwRenderCard();
+  refreshSavedWordsView();
+}
+
+function mwRenderWordCard(w) {
     const formsHTML = (w.forms && w.forms.length) ? `
       <div style="margin-top:8px;padding:8px 0 2px;border-top:1px solid var(--divider);">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--muted);margin-bottom:5px;">
@@ -2339,19 +2393,18 @@ async function mwRenderList() {
         <button class="mw-action-btn del" onclick="mwDeleteWord('${w.id}')">✕ Remove</button>
       </div>
     </div>`;
-  }).join('');
- 
-  document.getElementById('mwFcSection').style.display = '';
-  mwCards = [...myWords];
-  mwIndex = 0;
-  mwFlipped = false;
-  mwRenderCard();
 }
  
 function highlightWord(sentence, word) {
-  const root = word.slice(0, Math.max(3, word.length - 2));
-  return sentence.replace(new RegExp(`(${root}\\S*)`, 'gi'),
-    '<span style="color:var(--polish-red);font-weight:600;">$1</span>');
+  try {
+    const root = word.slice(0, Math.max(3, word.length - 2))
+      .replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'); // escape regex metacharacters (e.g. "/" in "niegrzeczny/niegrzeczna")
+    return sentence.replace(new RegExp(`(${root}\\S*)`, 'gi'),
+      '<span style="color:var(--polish-red);font-weight:600;">$1</span>');
+  } catch (err) {
+    console.error('highlightWord failed for word:', word, err);
+    return sentence;
+  }
 }
  
 function mwRenderCard() {
